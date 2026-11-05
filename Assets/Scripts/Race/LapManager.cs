@@ -10,7 +10,14 @@ public class LapManager : MonoBehaviour
     [SerializeField] private int totalLaps = 3;
     [SerializeField] private List<Transform> checkpoints = new List<Transform>();
 
+    [Header("Start Countdown (3, 2, 1, GO!)")]
+    [SerializeField] private float startCountdownSeconds = 3.0f;
+    [SerializeField] private float goBannerDuration = 1.15f;
+
     public int TotalLaps => totalLaps;
+    public bool IsRaceStarted => raceStarted;
+    public float CountdownRemaining => countdownRemaining;
+    public float GoTimerRemaining => goTimerRemaining;
 
     public class CarLapProgress
     {
@@ -26,10 +33,32 @@ public class LapManager : MonoBehaviour
     private Transform playerTransform;
     private Transform aiTransform;
 
+    private float countdownRemaining;
+    private float goTimerRemaining;
+    private bool raceStarted = false;
+    private int lastAnnouncedSecond = 4;
+    private AudioSource countdownAudio;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        startCountdownSeconds = 3.0f;
+        goBannerDuration = 1.15f;
+        countdownRemaining = startCountdownSeconds;
+        goTimerRemaining = 0f;
+        raceStarted = false;
+        lastAnnouncedSecond = 4;
+
+        countdownAudio = gameObject.GetComponent<AudioSource>();
+        if (countdownAudio == null)
+        {
+            countdownAudio = gameObject.AddComponent<AudioSource>();
+            countdownAudio.spatialBlend = 0f;
+            countdownAudio.playOnAwake = false;
+            countdownAudio.volume = 0.45f;
+        }
     }
 
     private void Start()
@@ -94,6 +123,31 @@ public class LapManager : MonoBehaviour
 
     private void Update()
     {
+        if (!raceStarted)
+        {
+            int currentSec = Mathf.CeilToInt(countdownRemaining);
+            if (currentSec < lastAnnouncedSecond && currentSec >= 1)
+            {
+                lastAnnouncedSecond = currentSec;
+                PlayCountdownBeep(440f, 0.14f);
+            }
+
+            countdownRemaining -= Time.deltaTime;
+            if (countdownRemaining <= 0f)
+            {
+                countdownRemaining = 0f;
+                raceStarted = true;
+                goTimerRemaining = goBannerDuration;
+                PlayCountdownBeep(880f, 0.32f);
+            }
+            return;
+        }
+
+        if (goTimerRemaining > 0f)
+        {
+            goTimerRemaining -= Time.deltaTime;
+        }
+
         foreach (var entry in progressMap)
         {
             if (!entry.Value.isFinished && entry.Value.currentLap >= 1)
@@ -101,6 +155,23 @@ public class LapManager : MonoBehaviour
                 entry.Value.currentLapTime += Time.deltaTime;
             }
         }
+    }
+
+    private void PlayCountdownBeep(float freq, float duration)
+    {
+        if (countdownAudio == null) return;
+        int sampleRate = 22050;
+        int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+        AudioClip clip = AudioClip.Create("CountdownBeep", sampleCount, 1, sampleRate, false);
+        float[] samples = new float[sampleCount];
+        for (int i = 0; i < sampleCount; i++)
+        {
+            float t = (float)i / sampleRate;
+            float env = Mathf.Clamp01(1f - (t / duration));
+            samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * env * 0.5f;
+        }
+        clip.SetData(samples, 0);
+        countdownAudio.PlayOneShot(clip);
     }
 
     public CarLapProgress GetProgress(string carId)

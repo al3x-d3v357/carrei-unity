@@ -193,6 +193,15 @@ public class ArcadeCarAI : MonoBehaviour
     private void FixedUpdate()
     {
         ApplyDownforce();
+
+        // Segura o oponente IA no grid de largada durante a contagem 3, 2, 1
+        if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            rb.angularVelocity = Vector3.zero;
+            return;
+        }
+
         ApplyDriveAndBraking();
         ApplySteering();
         ApplyLateralTireFriction();

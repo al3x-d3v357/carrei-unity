@@ -284,6 +284,15 @@ public class ArcadeCarController : MonoBehaviour
     private void FixedUpdate()
     {
         ApplyAerodynamicDownforce();
+
+        // Segura o carro no grid de largada durante a contagem 3, 2, 1
+        if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
+        {
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            rb.angularVelocity = Vector3.zero;
+            return;
+        }
+
         ApplyEngineAndBrakes();
         ApplySpeedSensitiveSteering();
         ApplyDynamicTireGrip();
@@ -360,6 +369,13 @@ public class ArcadeCarController : MonoBehaviour
 
     private void HandleTurboAbility()
     {
+        if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
+        {
+            isTurboActive = false;
+            CurrentTurboBlurFactor = 0f;
+            return;
+        }
+
         bool wantsTurbo = inputTurboKey && inputThrottle >= -0.05f;
         if (turboOverheated && currentTurbo >= minTurboToActivate)
         {

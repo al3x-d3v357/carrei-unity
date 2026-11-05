@@ -44,6 +44,12 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
             }
         }
 
+        if (LapManager.Instance == null)
+        {
+            GameObject lmGo = new GameObject("LapManager");
+            lmGo.AddComponent<LapManager>();
+        }
+
         VolumeProfile volProf = globalVolume != null ? globalVolume.sharedProfile : null;
         if (volProf != null)
         {
@@ -232,6 +238,95 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
                 : new Color(1f, 0.85f, 0.35f, 1f);
             GUI.Label(new Rect(x, y + 90f, panelW + 90f, 20f), statusBadge, headerStyle);
         }
+
+        DrawRaceStartCountdownGUI();
         GUI.color = Color.white;
+    }
+
+    private void DrawRaceStartCountdownGUI()
+    {
+        if (LapManager.Instance == null) return;
+
+        bool countingDown = !LapManager.Instance.IsRaceStarted;
+        bool showingGo = LapManager.Instance.IsRaceStarted && LapManager.Instance.GoTimerRemaining > 0f;
+        if (!countingDown && !showingGo) return;
+
+        string mainText;
+        string subText;
+        Color mainColor;
+        int dynamicFontSize;
+        float blinkAlpha;
+
+        if (countingDown)
+        {
+            float rem = LapManager.Instance.CountdownRemaining;
+            int num = Mathf.Clamp(Mathf.CeilToInt(rem), 1, 3);
+            float frac = rem - Mathf.Floor(rem);
+            if (frac <= 0.001f) frac = 1f;
+
+            mainText = num.ToString();
+            subText = "PREPARAR PARA LARGADA";
+            dynamicFontSize = Mathf.RoundToInt(Mathf.Lerp(84f, 128f, frac));
+
+            // Efeito piscante intenso a cada segundo
+            blinkAlpha = 0.35f + 0.65f * Mathf.Abs(Mathf.Sin(Time.time * 18f));
+
+            if (num == 3)
+                mainColor = new Color(0.94f, 0.55f, 0.22f, blinkAlpha); // Laranja Tangerina Neon #F08D39
+            else if (num == 2)
+                mainColor = new Color(0.95f, 0.75f, 0.48f, blinkAlpha); // Dourado Quente #F3BE7A
+            else
+                mainColor = new Color(1.0f, 0.92f, 0.35f, blinkAlpha); // Amarelo Ouro Brilhante
+        }
+        else
+        {
+            float goNorm = Mathf.Clamp01(LapManager.Instance.GoTimerRemaining / 1.15f);
+            mainText = "GO!";
+            subText = "ACELERE!";
+            dynamicFontSize = Mathf.RoundToInt(Mathf.Lerp(96f, 134f, goNorm));
+            blinkAlpha = (0.45f + 0.55f * Mathf.Abs(Mathf.Sin(Time.time * 24f))) * Mathf.Clamp01(goNorm * 1.5f);
+            mainColor = new Color(0.26f, 0.95f, 0.75f, blinkAlpha); // Verde Neon #43BDB0 Brilhante
+        }
+
+        float boxW = 340f;
+        float boxH = 165f;
+        float cx = (Screen.width - boxW) * 0.5f;
+        float cy = (Screen.height - boxH) * 0.32f;
+
+        // Card central escuro (Azul Royal Profundo #3852B4 com transparência)
+        GUI.color = new Color(0.08f, 0.12f, 0.26f, 0.82f * Mathf.Clamp01(blinkAlpha + 0.35f));
+        GUI.DrawTexture(new Rect(cx, cy, boxW, boxH), Texture2D.whiteTexture);
+
+        // Bordas superior e inferior piscando na cor da contagem
+        GUI.color = new Color(mainColor.r, mainColor.g, mainColor.b, 0.95f);
+        GUI.DrawTexture(new Rect(cx, cy, boxW, 4f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(cx, cy + boxH - 4f, boxW, 4f), Texture2D.whiteTexture);
+
+        GUIStyle subBannerStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 15,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+        subBannerStyle.normal.textColor = Color.white;
+        GUI.color = new Color(1f, 1f, 1f, 0.92f);
+        GUI.Label(new Rect(cx, cy + 12f, boxW, 24f), subText, subBannerStyle);
+
+        GUIStyle countStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = dynamicFontSize,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        // Sombra do número para contraste máximo
+        countStyle.normal.textColor = new Color(0f, 0f, 0f, blinkAlpha * 0.85f);
+        GUI.color = new Color(0f, 0f, 0f, blinkAlpha * 0.85f);
+        GUI.Label(new Rect(cx + 4f, cy + 36f, boxW, boxH - 36f), mainText, countStyle);
+
+        // Número principal piscando (3, 2, 1, GO!)
+        countStyle.normal.textColor = mainColor;
+        GUI.color = mainColor;
+        GUI.Label(new Rect(cx, cy + 32f, boxW, boxH - 36f), mainText, countStyle);
     }
 }
