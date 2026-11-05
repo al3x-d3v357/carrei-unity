@@ -1,0 +1,46 @@
+{
+  "cars": {
+    "Car_Model_1": {
+      "fbx_path": "Assets/Models/Car_Model_1.fbx",
+      "materials": [
+        {
+          "material_name": "Material.001",
+          "base_color_factor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "metallic": 0.1,
+          "roughness": 0.35,
+          "textures": {
+            "normal": "Assets/Materials/Cars/Car_Model_1_Material_001_normal.png",
+            "base_color": "Assets/Materials/Cars/Car_Model_1_Material_001_base_color.png",
+            "metallic_roughness": "Assets/Materials/Cars/Car_Model_1_Material_001_metallic_roughness.png"
+          }
+        }
+      ]
+    },
+    "Car_Model_2": {
+      "fbx_path": "Assets/Models/Car_Model_2.fbx",
+      "materials": [
+        {
+          "material_name": "Material.001",
+          "base_color_factor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "metallic": 0.1,
+          "roughness": 0.35,
+          "textures": {
+            "normal": "Assets/Materials/Cars/Car_Model_2_Material_001_normal.png",
+            "base_color": "Assets/Materials/Cars/Car_Model_2_Material_001_base_color.png",
+            "metallic_roughness": "Assets/Materials/Cars/Car_Model_2_Material_001_metallic_roughness.png"
+          }
+        }
+      ]
+    }
+  }
+}

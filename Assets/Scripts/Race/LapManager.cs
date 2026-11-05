@@ -1,0 +1,127 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class LapManager : MonoBehaviour
+{
+    public static LapManager Instance { get; private set; }
+
+    [Header("Race Parameters")]
+    [SerializeField] private int totalLaps = 3;
+    [SerializeField] private List<Transform> checkpoints = new List<Transform>();
+
+    public int TotalLaps => totalLaps;
+
+    public class CarLapProgress
+    {
+        public int currentCheckpointIndex = 0;
+        public int currentLap = 1;
+        public int totalCheckpointsPassed = 0;
+        public float currentLapTime = 0f;
+        public float bestLapTime = float.MaxValue;
+        public bool isFinished = false;
+    }
+
+    private Dictionary<string, CarLapProgress> progressMap = new Dictionary<string, CarLapProgress>();
+    private Transform playerTransform;
+    private Transform aiTransform;
+
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
+
+    private void Start()
+    {
+        GameObject pGo = GameObject.Find("Player_Car");
+        if (pGo != null)
+        {
+            playerTransform = pGo.transform;
+            progressMap["Player_Car"] = new CarLapProgress();
+        }
+        GameObject aiGo = GameObject.Find("AI_Opponent_Car");
+        if (aiGo != null)
+        {
+            aiTransform = aiGo.transform;
+            progressMap["AI_Opponent_Car"] = new CarLapProgress();
+        }
+    }
+
+    public void RegisterCheckpoint(Transform cp)
+    {
+        if (!checkpoints.Contains(cp)) checkpoints.Add(cp);
+    }
+
+    public void OnCarHitCheckpoint(string carId, int checkpointIndex)
+    {
+        if (checkpoints.Count == 0) return;
+        if (!progressMap.ContainsKey(carId))
+        {
+            progressMap[carId] = new CarLapProgress();
+        }
+
+        CarLapProgress progress = progressMap[carId];
+        if (progress.isFinished) return;
+
+        int expectedNext = (progress.currentCheckpointIndex + 1) % checkpoints.Count;
+
+        // Permite sincronizar no Checkpoint 0 na largada ou avancar na sequencia correta
+        if (checkpointIndex == expectedNext)
+        {
+            progress.currentCheckpointIndex = checkpointIndex;
+            progress.totalCheckpointsPassed++;
+
+            // Se completou a volta inteira e retornou ao Checkpoint 0
+            if (checkpointIndex == 0 && progress.totalCheckpointsPassed >= checkpoints.Count)
+            {
+                if (progress.currentLapTime < progress.bestLapTime && progress.currentLapTime > 3f)
+                {
+                    progress.bestLapTime = progress.currentLapTime;
+                }
+                Debug.Log($"[{carId}] Volta {progress.currentLap}/{totalLaps} concluída! Tempo: {progress.currentLapTime:F2}s | Melhor: {progress.bestLapTime:F2}s");
+                progress.currentLap++;
+                progress.currentLapTime = 0f;
+
+                if (progress.currentLap > totalLaps)
+                {
+                    progress.isFinished = true;
+                    Debug.Log($"🏁 [{carId}] cruzou a linha final! Corrida finalizada.");
+                }
+            }
+        }
+    }
+
+    private void Update()
+    {
+        foreach (var entry in progressMap)
+        {
+            if (!entry.Value.isFinished && entry.Value.currentLap >= 1)
+            {
+                entry.Value.currentLapTime += Time.deltaTime;
+            }
+        }
+    }
+
+    public CarLapProgress GetProgress(string carId)
+    {
+        return progressMap.ContainsKey(carId) ? progressMap[carId] : null;
+    }
+
+    public int GetPlayerRacePosition()
+    {
+        if (playerTransform == null || aiTransform == null || checkpoints.Count == 0) return 1;
+        float pScore = ComputeRaceScore("Player_Car", playerTransform);
+        float aiScore = ComputeRaceScore("AI_Opponent_Car", aiTransform);
+        return pScore >= aiScore ? 1 : 2;
+    }
+
+    private float ComputeRaceScore(string carId, Transform carTransform)
+    {
+        if (!progressMap.TryGetValue(carId, out CarLapProgress prog)) return 0f;
+        int nextCpIdx = (prog.currentCheckpointIndex + 1) % checkpoints.Count;
+        Transform nextCp = checkpoints[nextCpIdx];
+        float distToNext = nextCp != null ? Vector3.Distance(carTransform.position, nextCp.position) : 0f;
+        return (prog.totalCheckpointsPassed * 1000f) - distToNext;
+    }
+}
