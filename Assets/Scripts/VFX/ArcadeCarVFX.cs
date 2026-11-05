@@ -23,9 +23,11 @@ public class ArcadeCarVFX : MonoBehaviour
     private TrailRenderer[] tireSkidTrails = new TrailRenderer[2];
     private ParticleSystem driftSprayPS;
     private ParticleSystem driftSparksPS;
+    private ParticleSystem turboBlueSmokePS;
     private ParticleSystem nitroFlamePS;
     private ParticleSystem collisionSparksPS;
     private Light rearGlowLight;
+    private Material runtimeSoftSmokeMat;
     private bool wasNitroActive = false;
 
     private void Awake()
@@ -33,14 +35,53 @@ public class ArcadeCarVFX : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         playerCtrl = GetComponent<ArcadeCarController>();
         aiCtrl = GetComponent<ArcadeCarAI>();
+
+        CreateRuntimeSoftSmokeMaterial();
         BuildHeadlightsAndRearGlow();
         BuildTaillightRibbons();
         BuildNitroJetRibbons();
         BuildTireSkidMarks();
         BuildDriftWaterSpray();
         BuildDriftSparks();
+        BuildTurboBlueSmoke();
         BuildNitroExhaustFlames();
         BuildCollisionSparks();
+    }
+
+    private void CreateRuntimeSoftSmokeMaterial()
+    {
+        // Gera textura radial macia 64x64 para que a fumaça azul do Turbo e do Drift fique volumosa e bem visível
+        int res = 64;
+        Texture2D tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        Vector2 center = new Vector2((res - 1) * 0.5f, (res - 1) * 0.5f);
+        float maxRadius = res * 0.5f;
+
+        Color[] pixels = new Color[res * res];
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), center) / maxRadius;
+                float alpha = Mathf.Clamp01(1f - dist);
+                alpha = alpha * alpha * (3f - 2f * alpha); // Smoothstep macio
+                pixels[y * res + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+
+        Shader sh = Shader.Find("Sprites/Default") ??
+                    Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+                    Shader.Find("Particles/Standard Unlit");
+        runtimeSoftSmokeMat = new Material(sh);
+        runtimeSoftSmokeMat.mainTexture = tex;
+        if (runtimeSoftSmokeMat.HasProperty("_BaseMap"))
+            runtimeSoftSmokeMat.SetTexture("_BaseMap", tex);
+        if (runtimeSoftSmokeMat.HasProperty("_BaseColor"))
+            runtimeSoftSmokeMat.SetColor("_BaseColor", Color.white);
+        if (runtimeSoftSmokeMat.HasProperty("_Color"))
+            runtimeSoftSmokeMat.SetColor("_Color", Color.white);
     }
 
     private void Update()
@@ -53,12 +94,12 @@ public class ArcadeCarVFX : MonoBehaviour
         bool isPlayerDrifting = playerCtrl != null && (playerCtrl.IsDrifting || (Mathf.Abs(playerCtrl.VisualDriftYaw) > 3.5f && speed > 7f));
         bool isDrifting = isPlayerDrifting || (lateralSlip > 1.8f && speed > 6f);
 
-        bool isTurbo = playerCtrl != null && playerCtrl.IsTurboActive && forwardSpeed > 3f;
-        bool isDriftBoost = playerCtrl != null && playerCtrl.IsDriftBoostActive && forwardSpeed > 3f;
-        bool isAiNitro = aiCtrl != null && aiCtrl.IsNitroActive && forwardSpeed > 3f;
+        bool isTurbo = playerCtrl != null && playerCtrl.IsTurboActive && forwardSpeed > 2f;
+        bool isDriftBoost = playerCtrl != null && playerCtrl.IsDriftBoostActive && forwardSpeed > 2f;
+        bool isAiNitro = aiCtrl != null && aiCtrl.IsNitroActive && forwardSpeed > 2f;
         bool isNitro = isTurbo || isDriftBoost || isAiNitro;
 
-        // 1. Fitas de luz traseiras (ficam mais largas durante o Turbo)
+        // 1. Fitas de luz traseiras
         bool emitRibbons = speed > 4.5f;
         foreach (var tr in taillightTrails)
         {
@@ -69,7 +110,7 @@ public class ArcadeCarVFX : MonoBehaviour
             }
         }
 
-        // 2. Jatos duplos de plasma azul/ciano no escapamento durante o Turbo / Drift Boost
+        // 2. Jatos duplos de plasma azul/ciano no escapamento durante o Turbo
         foreach (var nt in nitroJetTrails)
         {
             if (nt != null)
@@ -84,14 +125,14 @@ public class ArcadeCarVFX : MonoBehaviour
             if (skid != null) skid.emitting = isDrifting;
         }
 
-        // 4. Fumaça e spray denso nos pneus traseiros durante o Drift / deslize de curva
+        // 4. Fumaça nos pneus traseiros durante o Drift / deslize de curva
         if (driftSprayPS != null)
         {
             var emission = driftSprayPS.emission;
-            emission.rateOverTime = isDrifting ? 65f : 0f;
+            emission.rateOverTime = isDrifting ? 75f : 0f;
         }
 
-        // 5. Faíscas de Drift nas rodas traseiras (mudam de Laranja para Azul Ciano quando o Drift Boost está pronto!)
+        // 5. Faíscas de Drift nas rodas traseiras
         if (driftSparksPS != null)
         {
             var emission = driftSparksPS.emission;
@@ -101,36 +142,42 @@ public class ArcadeCarVFX : MonoBehaviour
             {
                 var main = driftSparksPS.main;
                 main.startColor = playerCtrl.DriftCharge >= 0.40f
-                    ? new Color(0.15f, 0.90f, 1.0f, 1f) // Azul Ciano: Drift Boost Carregado!
-                    : new Color(1.0f, 0.60f, 0.12f, 1f); // Laranja Fogo: Carregando Drift!
+                    ? new Color(0.15f, 0.90f, 1.0f, 1f)
+                    : new Color(1.0f, 0.60f, 0.12f, 1f);
             }
         }
 
-        // 6. Chamas intensas de Turbo / Nitro no escapamento
+        // 6. FUMAÇA AZUL DENSA DO TURBO (Nuvens volumosas azuis saindo da traseira do carro!)
+        if (turboBlueSmokePS != null)
+        {
+            if (isNitro && !wasNitroActive)
+            {
+                turboBlueSmokePS.Emit(25);
+            }
+            var emission = turboBlueSmokePS.emission;
+            emission.rateOverTime = isNitro ? 130f : 0f;
+        }
+
+        // 7. Chamas azuis no centro do escapamento
         if (nitroFlamePS != null)
         {
             if (isNitro && !wasNitroActive)
             {
-                // Explosão imediata ao apertar o botão B (Turbo)
-                nitroFlamePS.Emit(28);
+                nitroFlamePS.Emit(20);
             }
             var emission = nitroFlamePS.emission;
-            emission.rateOverTime = isNitro ? 95f : 0f;
-            var main = nitroFlamePS.main;
-            main.startColor = isDriftBoost && !isTurbo
-                ? new Color(1.0f, 0.65f, 0.15f, 0.95f)
-                : new Color(0.15f, 0.85f, 1.0f, 0.95f);
+            emission.rateOverTime = isNitro ? 85f : 0f;
         }
         wasNitroActive = isNitro;
 
-        // 7. Iluminação intensa do Turbo / Freio no asfalto
+        // 8. Iluminação azul intensa do Turbo no asfalto
         if (rearGlowLight != null)
         {
             bool braking = (playerCtrl != null && playerCtrl.ThrottleInput < -0.1f && forwardSpeed > 1.0f);
             rearGlowLight.intensity = isNitro ? 6.5f : (braking ? 2.5f : 1.1f);
             rearGlowLight.range = isNitro ? 9.5f : 5.5f;
             rearGlowLight.color = isNitro
-                ? (isDriftBoost && !isTurbo ? new Color(1.0f, 0.55f, 0.1f) : new Color(0.1f, 0.85f, 1.0f))
+                ? new Color(0.12f, 0.75f, 1.0f)
                 : new Color(1.0f, 0.08f, 0.12f);
         }
     }
@@ -211,32 +258,32 @@ public class ArcadeCarVFX : MonoBehaviour
 
     private void BuildNitroJetRibbons()
     {
-        float[] xOffsets = { -0.32f, 0.32f };
+        float[] xOffsets = { -0.35f, 0.35f };
         for (int i = 0; i < 2; i++)
         {
             GameObject jetGo = new GameObject($"Nitro_Jet_Ribbon_{i}");
             jetGo.transform.SetParent(transform, false);
             jetGo.transform.localPosition = new Vector3(xOffsets[i], 0.30f, -1.68f);
             TrailRenderer tr = jetGo.AddComponent<TrailRenderer>();
-            tr.time = 0.28f;
+            tr.time = 0.32f;
             tr.minVertexDistance = 0.10f;
-            tr.startWidth = 0.26f;
+            tr.startWidth = 0.32f;
             tr.endWidth = 0.0f;
             tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             tr.receiveShadows = false;
-            if (nitroFlameMat != null) tr.sharedMaterial = nitroFlameMat;
-            else if (trailNeonMat != null) tr.sharedMaterial = trailNeonMat;
+            if (runtimeSoftSmokeMat != null) tr.sharedMaterial = runtimeSoftSmokeMat;
+            else if (nitroFlameMat != null) tr.sharedMaterial = nitroFlameMat;
 
             Gradient grad = new Gradient();
             grad.SetKeys(
                 new GradientColorKey[] {
-                    new GradientColorKey(new Color(0.65f, 0.98f, 1.0f), 0f),
-                    new GradientColorKey(new Color(0.05f, 0.65f, 1.0f), 0.5f),
-                    new GradientColorKey(new Color(0.15f, 0.25f, 0.95f), 1f)
+                    new GradientColorKey(new Color(0.55f, 0.95f, 1.0f), 0f),
+                    new GradientColorKey(new Color(0.10f, 0.60f, 1.0f), 0.5f),
+                    new GradientColorKey(new Color(0.05f, 0.30f, 0.95f), 1f)
                 },
                 new GradientAlphaKey[] {
                     new GradientAlphaKey(0.95f, 0f),
-                    new GradientAlphaKey(0.65f, 0.5f),
+                    new GradientAlphaKey(0.70f, 0.5f),
                     new GradientAlphaKey(0.0f, 1f)
                 }
             );
@@ -272,26 +319,98 @@ public class ArcadeCarVFX : MonoBehaviour
     {
         GameObject psGo = new GameObject("Drift_WaterSpray_VFX");
         psGo.transform.SetParent(transform, false);
-        psGo.transform.localPosition = new Vector3(0f, 0.20f, -1.45f);
+        psGo.transform.localPosition = new Vector3(0f, 0.22f, -1.45f);
         psGo.transform.localRotation = Quaternion.Euler(-15f, 180f, 0f);
         driftSprayPS = psGo.AddComponent<ParticleSystem>();
         var main = driftSprayPS.main;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.28f, 0.52f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(2.2f, 4.8f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.38f, 0.82f);
-        main.startColor = new Color(0.82f, 0.90f, 0.98f, 0.45f);
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.65f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(2.0f, 4.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.55f, 1.15f);
+        main.startColor = new Color(0.85f, 0.90f, 0.96f, 0.65f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 140;
+        main.maxParticles = 200;
+
         var emission = driftSprayPS.emission;
         emission.rateOverTime = 0f;
+
         var shape = driftSprayPS.shape;
         shape.shapeType = ParticleSystemShapeType.Box;
         shape.scale = new Vector3(1.35f, 0.18f, 0.20f);
+
+        var colLife = driftSprayPS.colorOverLifetime;
+        colLife.enabled = true;
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(0.90f, 0.94f, 1.0f), 0f),
+                new GradientColorKey(new Color(0.70f, 0.78f, 0.88f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(0.70f, 0f),
+                new GradientAlphaKey(0.35f, 0.5f),
+                new GradientAlphaKey(0.0f, 1f)
+            }
+        );
+        colLife.color = new ParticleSystem.MinMaxGradient(grad);
+
         var sizeOverLifetime = driftSprayPS.sizeOverLifetime;
         sizeOverLifetime.enabled = true;
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.55f, 1f, 1.35f));
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 1.7f));
+
         var psRenderer = psGo.GetComponent<ParticleSystemRenderer>();
-        if (smokeSprayMat != null) psRenderer.sharedMaterial = smokeSprayMat;
+        psRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (runtimeSoftSmokeMat != null) psRenderer.sharedMaterial = runtimeSoftSmokeMat;
+        else if (smokeSprayMat != null) psRenderer.sharedMaterial = smokeSprayMat;
+    }
+
+    private void BuildTurboBlueSmoke()
+    {
+        GameObject blueSmokeGo = new GameObject("Turbo_BlueSmoke_VFX");
+        blueSmokeGo.transform.SetParent(transform, false);
+        blueSmokeGo.transform.localPosition = new Vector3(0f, 0.35f, -1.70f);
+        blueSmokeGo.transform.localRotation = Quaternion.Euler(-10f, 180f, 0f);
+        turboBlueSmokePS = blueSmokeGo.AddComponent<ParticleSystem>();
+
+        var main = turboBlueSmokePS.main;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.45f, 0.85f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(2.5f, 6.0f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.80f, 1.55f);
+        main.startColor = Color.white;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 350;
+
+        var emission = turboBlueSmokePS.emission;
+        emission.rateOverTime = 0f;
+
+        var shape = turboBlueSmokePS.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(1.15f, 0.25f, 0.25f);
+
+        // Gradiente de Fumaça Azul Vibrante (Ciano Brilhante no escapamento -> Azul Royal denso -> Dissipa suavemente)
+        var colLife = turboBlueSmokePS.colorOverLifetime;
+        colLife.enabled = true;
+        Gradient blueGrad = new Gradient();
+        blueGrad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(0.35f, 0.88f, 1.0f), 0.0f),
+                new GradientColorKey(new Color(0.10f, 0.55f, 1.0f), 0.35f),
+                new GradientColorKey(new Color(0.06f, 0.32f, 0.92f), 1.0f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(0.92f, 0.0f),
+                new GradientAlphaKey(0.75f, 0.45f),
+                new GradientAlphaKey(0.0f, 1.0f)
+            }
+        );
+        colLife.color = new ParticleSystem.MinMaxGradient(blueGrad);
+
+        var sizeOverLifetime = turboBlueSmokePS.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.65f, 1f, 2.1f));
+
+        var psRenderer = blueSmokeGo.GetComponent<ParticleSystemRenderer>();
+        psRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (runtimeSoftSmokeMat != null) psRenderer.sharedMaterial = runtimeSoftSmokeMat;
     }
 
     private void BuildDriftSparks()
@@ -331,19 +450,19 @@ public class ArcadeCarVFX : MonoBehaviour
         var main = nitroFlamePS.main;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.12f, 0.24f);
         main.startSpeed = new ParticleSystem.MinMaxCurve(6.5f, 12.5f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.32f, 0.68f);
-        main.startColor = new Color(0.15f, 0.85f, 1.0f, 0.95f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.72f);
+        main.startColor = new Color(0.25f, 0.90f, 1.0f, 0.95f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.maxParticles = 150;
         var emission = nitroFlamePS.emission;
         emission.rateOverTime = 0f;
-        var shape = nitroFlamePS.shape;
+        var shape = nitroGo.GetComponent<ParticleSystem>().shape;
         shape.shapeType = ParticleSystemShapeType.Box;
         shape.scale = new Vector3(0.75f, 0.15f, 0.15f);
         var psRenderer = nitroGo.GetComponent<ParticleSystemRenderer>();
-        psRenderer.renderMode = ParticleSystemRenderMode.Stretch;
-        psRenderer.lengthScale = 1.8f;
-        if (nitroFlameMat != null) psRenderer.sharedMaterial = nitroFlameMat;
+        psRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (runtimeSoftSmokeMat != null) psRenderer.sharedMaterial = runtimeSoftSmokeMat;
+        else if (nitroFlameMat != null) psRenderer.sharedMaterial = nitroFlameMat;
     }
 
     private void BuildCollisionSparks()

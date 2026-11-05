@@ -101,38 +101,39 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
         float speedNorm = Mathf.Clamp01(playerRb.linearVelocity.magnitude / 28f);
         float turboBlur = playerController.CurrentTurboBlurFactor;
 
-        // 1. Atualiza o Shader de Embacamento Radial na Lente da Camera
+        // 1. Embaçamento radial de tela reduzido drasticamente (apenas 12% sutil nas bordas para manter a imagem limpa e nítida)
         if (turboScreenBlurMaterial != null)
         {
-            turboScreenBlurMaterial.SetFloat("_BlurStrength", turboBlur);
+            turboScreenBlurMaterial.SetFloat("_BlurStrength", turboBlur * 0.12f);
+            turboScreenBlurMaterial.SetFloat("_CenterFocusRadius", 0.45f);
             if (blurQuadRenderer != null)
             {
-                blurQuadRenderer.enabled = turboBlur > 0.005f;
+                blurQuadRenderer.enabled = turboBlur > 0.01f;
             }
         }
 
-        // 2. Modula o Pos-Processamento URP (Aberracao Cromatica, Bloom, Distorcao de Lente, Motion Blur)
+        // 2. Pós-Processamento URP suave sem embaçar a visão do carro
         if (chromaticAberration != null)
         {
-            chromaticAberration.intensity.value = Mathf.Lerp(Mathf.Lerp(0.06f, 0.25f, speedNorm), 1.0f, turboBlur);
+            chromaticAberration.intensity.value = Mathf.Lerp(Mathf.Lerp(0.03f, 0.08f, speedNorm), 0.18f, turboBlur);
         }
         if (bloom != null)
         {
-            bloom.intensity.value = Mathf.Lerp(Mathf.Lerp(1.15f, 1.4f, speedNorm), 2.45f, turboBlur);
-            bloom.scatter.value = Mathf.Lerp(0.72f, 0.90f, turboBlur);
+            bloom.intensity.value = Mathf.Lerp(Mathf.Lerp(1.10f, 1.25f, speedNorm), 1.45f, turboBlur);
+            bloom.scatter.value = Mathf.Lerp(0.68f, 0.75f, turboBlur);
         }
         if (lensDistortion != null)
         {
-            lensDistortion.intensity.value = Mathf.Lerp(0f, -0.45f, turboBlur);
-            lensDistortion.scale.value = Mathf.Lerp(1.0f, 1.08f, turboBlur);
+            lensDistortion.intensity.value = Mathf.Lerp(0f, -0.10f, turboBlur);
+            lensDistortion.scale.value = Mathf.Lerp(1.0f, 1.02f, turboBlur);
         }
         if (motionBlur != null)
         {
-            motionBlur.intensity.value = Mathf.Lerp(0.15f, 1.0f, turboBlur);
+            motionBlur.intensity.value = Mathf.Lerp(0.05f, 0.18f, turboBlur);
         }
         if (vignette != null)
         {
-            vignette.intensity.value = Mathf.Lerp(0.32f, 0.52f, turboBlur);
+            vignette.intensity.value = Mathf.Lerp(0.28f, 0.36f, turboBlur);
         }
     }
 
@@ -230,21 +231,6 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
                 ? new Color(0.25f, 0.95f, 1f, 1f)
                 : new Color(1f, 0.85f, 0.35f, 1f);
             GUI.Label(new Rect(x, y + 90f, panelW + 90f, 20f), statusBadge, headerStyle);
-        }
-
-        // Moldura energética de tela durante o Turbo ou Drift Boost para feedback visual imediato
-        if (playerController.CurrentTurboBlurFactor > 0.05f)
-        {
-            float alpha = playerController.CurrentTurboBlurFactor * 0.42f;
-            Color edgeCol = playerController.IsTurboActive
-                ? new Color(0.08f, 0.85f, 1.0f, alpha)
-                : new Color(1.0f, 0.58f, 0.12f, alpha * 0.8f);
-            GUI.color = edgeCol;
-            float borderThickness = 8f * playerController.CurrentTurboBlurFactor;
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, borderThickness), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0f, Screen.height - borderThickness, Screen.width, borderThickness), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0f, 0f, borderThickness, Screen.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(Screen.width - borderThickness, 0f, borderThickness, Screen.height), Texture2D.whiteTexture);
         }
         GUI.color = Color.white;
     }
