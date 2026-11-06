@@ -219,6 +219,8 @@ public class CarSelectUIController : MonoBehaviour
             }
         }
     }
+
+    private void OnRaceClicked()
     {
         if (availableCars.Count > 0)
         {
