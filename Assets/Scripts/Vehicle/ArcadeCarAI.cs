@@ -127,31 +127,7 @@ public class ArcadeCarAI : MonoBehaviour
             MeshFilter mf = existingVisual.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null)
             {
-                Mesh mesh = mf.sharedMesh;
-                Bounds b = mesh.bounds;
-                float maxHoriz = Mathf.Max(b.size.x, b.size.z);
-                if (maxHoriz > 0.01f && maxHoriz < 2.0f && existingVisual.localScale.magnitude < 2.5f)
-                {
-                    float scaleFactor = 3.1f / maxHoriz;
-                    existingVisual.localScale = Vector3.one * scaleFactor;
-                }
-                if (b.size.x > b.size.z * 1.2f)
-                {
-                    Quaternion baseRot = Quaternion.Euler(0f, -90f, 0f);
-                    if (mesh.isReadable)
-                    {
-                        Vector3[] verts = mesh.vertices;
-                        float maxYFront = 0f, maxYRear = 0f, threshold = maxHoriz * 0.22f;
-                        for (int i = 0; i < verts.Length; i++)
-                        {
-                            Vector3 vAligned = baseRot * verts[i];
-                            if (vAligned.z > threshold && vAligned.y > maxYFront) maxYFront = vAligned.y;
-                            if (vAligned.z < -threshold && vAligned.y > maxYRear) maxYRear = vAligned.y;
-                        }
-                        if (maxYFront > maxYRear) baseRot = Quaternion.Euler(0f, 180f, 0f) * baseRot;
-                    }
-                    existingVisual.localRotation = baseRot;
-                }
+                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh);
             }
             visualMeshRoot = existingVisual;
             initialVisualLocalRot = visualMeshRoot.localRotation;

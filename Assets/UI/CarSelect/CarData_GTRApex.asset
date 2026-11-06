@@ -19,4 +19,5 @@ MonoBehaviour:
   handling: 78
   weight: 1,450 kg
   drivetrain: AWD
+  thumbnail: {fileID: 21300000, guid: 7aad0a3bc22bd89f5a0644a66b9be804, type: 3}
   carPrefab: {fileID: 919132149155446097, guid: 49226ad3dc795a800a226280f9e7a893, type: 3}

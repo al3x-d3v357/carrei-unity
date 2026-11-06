@@ -2,21 +2,27 @@
     <Style src="project://database/Assets/UI/CarSelect/CarSelectScreen.uss" />
     <ui:VisualElement class="root-container">
         
-        <!-- Topo: Menu, Thumbnail e Estatísticas -->
-        <ui:VisualElement style="flex-direction: row; justify-content: space-between; align-items: flex-start;">
+        <!-- Topo: Menu Lateral, Carrossel com Setas e Estatísticas -->
+        <ui:VisualElement style="flex-direction: row; justify-content: space-between; align-items: center; flex-grow: 1;">
             
             <!-- Painel Esquerdo -->
             <ui:VisualElement name="MenuContainer" class="menu-panel">
-                <ui:Label text="MENU PRINCIPAL" class="header-label" />
-                <ui:Button name="BtnGarage" text="GARAGE / TROCAR CARRO" class="menu-button" />
+                <ui:Label text="SELEÇÃO DE VEÍCULO" class="header-label" />
+                <ui:Button name="BtnGarage" text="PRÓXIMO VEÍCULO ▶" class="menu-button" />
                 <ui:Button name="BtnOptions" text="OPÇÕES / ÁUDIO" class="menu-button" />
                 <ui:Button name="BtnViability" text="VIABILIDADE DE CARROS" class="menu-button" />
-                <ui:Button name="BtnRace" text="INICIAR CORRIDA" class="menu-button" />
+                <ui:Button name="BtnRace" text="INICIAR CORRIDA 🏁" class="menu-button" style="background-color: rgba(243, 156, 18, 0.45); border-color: #f39c12; color: #ffffff;" />
             </ui:VisualElement>
 
-            <!-- Painel Central: Preview / Thumbnail da Imagem do Veículo -->
-            <ui:VisualElement name="ThumbnailPanel" class="preview-panel">
-                <ui:VisualElement name="CarThumbnailImage" class="preview-image" />
+            <!-- Carrossel Central: Seta Esquerda ◀ + Imagem 520x340 + Seta Direita ▶ -->
+            <ui:VisualElement name="CarouselContainer" class="carousel-container">
+                <ui:Button name="BtnPrevCar" text="◀" class="nav-arrow-button" />
+                
+                <ui:VisualElement name="ThumbnailPanel" class="preview-panel">
+                    <ui:VisualElement name="CarThumbnailImage" class="preview-image" />
+                </ui:VisualElement>
+
+                <ui:Button name="BtnNextCar" text="▶" class="nav-arrow-button" />
             </ui:VisualElement>
 
             <!-- Painel Direito: Estatísticas e Especificações -->
@@ -75,10 +81,9 @@
             <ui:Label name="CarNameLabel" text="VX-9 PHANTOM" class="car-title-label" />
             
             <ui:VisualElement name="NavigationControls" class="footer-nav">
-                <ui:Label text="(A/W) ACELERAR" class="footer-nav-item" />
-                <ui:Label text="(B/Shift) TURBO" class="footer-nav-item" />
-                <ui:Label text="(X/Space) DRIFT" class="footer-nav-item" />
-                <ui:Label text="(LB/RB/E) EMPINAR" class="footer-nav-item" />
+                <ui:Label text="[◀ / ▶ ou X / B] TROCAR VEÍCULO" class="footer-nav-item" />
+                <ui:Label text="[ENTER ou A] CONFIRMAR E INICIAR" class="footer-nav-item" style="color: #f39c12; -unity-font-style: bold;" />
+                <ui:Label text="[Y / O] OPÇÕES" class="footer-nav-item" />
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -104,7 +109,7 @@
 
                 <ui:VisualElement class="option-row">
                     <ui:Label text="Controle Xbox 360:" class="option-label" />
-                    <ui:Label text="CONECTADO / ATIVO" style="color: #43bdb0; -unity-font-style: bold; font-size: 13px;" />
+                    <ui:Label text="CONECTADO / ATIVO" style="color: #43bdb0; -unity-font-style: bold; font-size: 14px;" />
                 </ui:VisualElement>
 
                 <ui:Button name="BtnCloseOptions" text="SALVAR E VOLTAR" class="modal-close-btn" />
@@ -116,7 +121,7 @@
             <ui:VisualElement class="modal-window">
                 <ui:Label text="RELATÓRIO DE VIABILIDADE DOS VEÍCULOS" class="modal-header" />
                 
-                <ui:Label text="Apenas os modelos otimizados do projeto estão liberados para corrida:" style="font-size: 12px; color: #b0b0b0; margin-bottom: 8px;" />
+                <ui:Label text="Apenas os modelos otimizados do projeto estão liberados para corrida:" style="font-size: 13px; color: #b0b0b0; margin-bottom: 10px;" />
 
                 <ui:VisualElement class="viability-table">
                     <ui:VisualElement class="viability-row" style="background-color: rgba(255, 255, 255, 0.05);">

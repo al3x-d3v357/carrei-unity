@@ -201,7 +201,11 @@ public class ArcadeCarController : MonoBehaviour
 
         if (existingVisual != null)
         {
-            EnsureMotoModelLoaded(existingVisual);
+            MeshFilter mf = existingVisual.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null)
+            {
+                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh);
+            }
             visualMeshRoot = existingVisual;
             initialVisualLocalRot = visualMeshRoot.localRotation;
             initialVisualLocalPos = visualMeshRoot.localPosition;

@@ -26,6 +26,8 @@ public class CarSelectUIController : MonoBehaviour
     private Label specDriveLabel;
 
     private Button btnGarage;
+    private Button btnPrevCar;
+    private Button btnNextCar;
     private Button btnOptions;
     private Button btnViability;
     private Button btnRace;
@@ -72,6 +74,8 @@ public class CarSelectUIController : MonoBehaviour
         specDriveLabel = root.Q<Label>("SpecDrive");
 
         btnGarage = root.Q<Button>("BtnGarage");
+        btnPrevCar = root.Q<Button>("BtnPrevCar");
+        btnNextCar = root.Q<Button>("BtnNextCar");
         btnOptions = root.Q<Button>("BtnOptions");
         btnViability = root.Q<Button>("BtnViability");
         btnRace = root.Q<Button>("BtnRace");
@@ -89,7 +93,9 @@ public class CarSelectUIController : MonoBehaviour
     private void RegisterCallbacks()
     {
         if (btnRace != null) btnRace.clicked += OnRaceClicked;
-        if (btnGarage != null) btnGarage.clicked += OnGarageNextCar;
+        if (btnGarage != null) btnGarage.clicked += OnNextCar;
+        if (btnNextCar != null) btnNextCar.clicked += OnNextCar;
+        if (btnPrevCar != null) btnPrevCar.clicked += OnPrevCar;
         if (btnOptions != null) btnOptions.clicked += OnOptionsClicked;
         if (btnViability != null) btnViability.clicked += OnViabilityClicked;
 
@@ -140,11 +146,11 @@ public class CarSelectUIController : MonoBehaviour
         if (specWeightLabel != null) specWeightLabel.text = data.weight;
         if (specDriveLabel != null) specDriveLabel.text = data.drivetrain;
 
-        // Se o carro possui prefab ou mesh associado, atualiza o Player_Car na cena
-        UpdateSceneVehicleMesh(data);
+        // Atualiza o modelo 3D do Player_Car na cena em escala e rotação padronizada
+        ApplyVehicleToPlayerCar(data);
     }
 
-    private void UpdateSceneVehicleMesh(CarData data)
+    private void ApplyVehicleToPlayerCar(CarData data)
     {
         GameObject playerCar = GameObject.Find("Player_Car");
         if (playerCar == null || data == null) return;
@@ -152,26 +158,101 @@ public class CarSelectUIController : MonoBehaviour
         Transform visualRoot = playerCar.transform.Find("Visual_Mesh");
         if (visualRoot == null) return;
 
+        // Limpa sub-objetos antigos para não sobrepor malhas
+        for (int i = visualRoot.childCount - 1; i >= 0; i--)
+        {
+            if (Application.isPlaying) Destroy(visualRoot.GetChild(i).gameObject);
+            else DestroyImmediate(visualRoot.GetChild(i).gameObject);
+        }
+
+        MeshFilter myMf = visualRoot.GetComponent<MeshFilter>();
+        if (myMf == null) myMf = visualRoot.gameObject.AddComponent<MeshFilter>();
+        MeshRenderer myMr = visualRoot.GetComponent<MeshRenderer>();
+        if (myMr == null) myMr = visualRoot.gameObject.AddComponent<MeshRenderer>();
+
         if (data.carPrefab != null)
         {
             MeshFilter targetMf = data.carPrefab.GetComponentInChildren<MeshFilter>();
             MeshRenderer targetMr = data.carPrefab.GetComponentInChildren<MeshRenderer>();
-            if (targetMf != null && targetMr != null)
+            if (targetMf != null && targetMr != null && targetMf.sharedMesh != null)
             {
-                MeshFilter myMf = visualRoot.GetComponent<MeshFilter>();
-                if (myMf != null) myMf.sharedMesh = targetMf.sharedMesh;
-                MeshRenderer myMr = visualRoot.GetComponent<MeshRenderer>();
-                if (myMr != null) myMr.sharedMaterials = targetMr.sharedMaterials;
+                myMf.sharedMesh = targetMf.sharedMesh;
+                myMr.sharedMaterials = targetMr.sharedMaterials;
+                myMr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                myMr.receiveShadows = true;
+            }
+        }
+
+        // PADRONIZAÇÃO DE TAMANHO E ROTAÇÃO PARA NÃO FICAR PEQUENO NEM DESALINHADO
+        StandardizeVisualTransform(visualRoot, myMf.sharedMesh);
+
+        // Atualiza as dimensões do colisor
+        BoxCollider box = playerCar.GetComponent<BoxCollider>();
+        if (box != null)
+        {
+            if (data.carName.ToLower().Contains("moto"))
+            {
+                box.size = new Vector3(1.20f, 1.60f, 3.20f);
+                box.center = new Vector3(0f, 0.35f, 0f);
+            }
+            else
+            {
+                box.size = new Vector3(1.85f, 0.95f, 3.35f);
+                box.center = new Vector3(0f, 0.45f, 0f);
             }
         }
     }
 
-    private void OnGarageNextCar()
+    public static void StandardizeVisualTransform(Transform visualRoot, Mesh mesh)
+    {
+        if (visualRoot == null || mesh == null) return;
+
+        Bounds b = mesh.bounds;
+        float maxHoriz = Mathf.Max(b.size.x, b.size.z);
+
+        // Tamanho padrão de comprimento de veículo de corrida: 3.2 metros
+        const float targetLength = 3.20f;
+        float finalScale = 1.0f;
+        if (maxHoriz > 0.01f && maxHoriz < 2.0f)
+        {
+            finalScale = targetLength / maxHoriz;
+        }
+        else if (maxHoriz >= 2.0f)
+        {
+            finalScale = targetLength / maxHoriz;
+        }
+        visualRoot.localScale = Vector3.one * finalScale;
+
+        // ROTAÇÃO PADRÃO:
+        // Se a malha é mais larga no eixo X que no Z (ex: Car_Model_2 onde L=1.14 em X e 0.52 em Z):
+        // Frente está em +X. Para alinhar com a frente do carro (+Z): rotação Euler Y = -90 (270).
+        // Se a malha já é longa no eixo Z (ex: Car_Model_1 e Moto): rotação Euler Y = 0.
+        Quaternion baseRot = Quaternion.identity;
+        if (b.size.x > b.size.z * 1.2f)
+        {
+            baseRot = Quaternion.Euler(0f, -90f, 0f);
+        }
+
+        // Posição no chão: alinha a base da malha com a pista
+        float groundOffsetY = (b.min.y * finalScale);
+        visualRoot.localPosition = new Vector3(0f, -groundOffsetY - 0.45f, 0f);
+        visualRoot.localRotation = baseRot;
+    }
+
+    private void OnNextCar()
     {
         if (availableCars.Count == 0) return;
         currentCarIndex = (currentCarIndex + 1) % availableCars.Count;
         UpdateUI(availableCars[currentCarIndex]);
-        Debug.Log($"[CarSelect] Veículo selecionado: {availableCars[currentCarIndex].carName}");
+        Debug.Log($"[CarSelect] Próximo veículo: {availableCars[currentCarIndex].carName}");
+    }
+
+    private void OnPrevCar()
+    {
+        if (availableCars.Count == 0) return;
+        currentCarIndex = (currentCarIndex - 1 + availableCars.Count) % availableCars.Count;
+        UpdateUI(availableCars[currentCarIndex]);
+        Debug.Log($"[CarSelect] Veículo anterior: {availableCars[currentCarIndex].carName}");
     }
 
     private void OnOptionsClicked()
@@ -194,23 +275,28 @@ public class CarSelectUIController : MonoBehaviour
         // Se a tela de seleção estiver visível, permite navegar e confirmar pelo controle de Xbox 360 e teclado
         if (root != null && root.style.display != DisplayStyle.None)
         {
-            // Botão A do Xbox (ou Enter / Espaço): Confirmar veículo e iniciar corrida
+            // Botão A do Xbox (ou Enter): Confirmar veículo e iniciar corrida
             if (Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetKeyDown(KeyCode.Return))
             {
                 OnRaceClicked();
             }
-            // Botão X do Xbox (ou Tab / D / Direita): Trocar de veículo
-            else if (Input.GetKeyDown(KeyCode.JoystickButton2) || Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.RightArrow))
+            // Seta Esquerda (ou Botão X / LB): Veículo Anterior
+            else if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.JoystickButton2) || Input.GetKeyDown(KeyCode.JoystickButton4) || Input.GetKeyDown(KeyCode.A))
             {
-                OnGarageNextCar();
+                OnPrevCar();
+            }
+            // Seta Direita (ou Botão B / RB / Tab): Próximo Veículo
+            else if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.JoystickButton1) || Input.GetKeyDown(KeyCode.JoystickButton5) || Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.Tab))
+            {
+                OnNextCar();
             }
             // Botão Y do Xbox (ou O): Abrir Opções
             else if (Input.GetKeyDown(KeyCode.JoystickButton3) || Input.GetKeyDown(KeyCode.O))
             {
                 OnOptionsClicked();
             }
-            // Botão B do Xbox (ou Escape): Fechar modais abertos
-            else if (Input.GetKeyDown(KeyCode.JoystickButton1) || Input.GetKeyDown(KeyCode.Escape))
+            // Escape: Fechar modais
+            else if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (modalOptions != null && modalOptions.style.display == DisplayStyle.Flex)
                     CloseModal(modalOptions);
