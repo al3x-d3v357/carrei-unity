@@ -331,8 +331,8 @@ public static class ShowcaseVisualsBuilder
 
         ColorAdjustments colorAdj = profile.Add<ColorAdjustments>(true);
         colorAdj.name = "ColorAdjustments";
-        colorAdj.postExposure.Override(0.35f);
-        colorAdj.contrast.Override(18f);
+        colorAdj.postExposure.Override(0.45f);
+        colorAdj.contrast.Override(16f);
         colorAdj.saturation.Override(22f);
         AssetDatabase.AddObjectToAsset(colorAdj, profile);
 
@@ -368,10 +368,16 @@ public static class ShowcaseVisualsBuilder
     private static void ConfigureMainCameraURP()
     {
         Camera mainCam = Camera.main;
+        if (mainCam == null)
+        {
+            GameObject camGo = GameObject.Find("Isometric_Main_Camera");
+            if (camGo != null) mainCam = camGo.GetComponent<Camera>();
+        }
         if (mainCam == null) return;
 
-        mainCam.backgroundColor = new Color(0.27f, 0.31f, 0.43f, 1f);
-        mainCam.clearFlags = CameraClearFlags.Skybox;
+        // Método 1: Câmera com Fundo Sólido (preserva todos os reflexos e luz ambiente da Skybox, sem desenhar o céu no fundo)
+        mainCam.clearFlags = CameraClearFlags.SolidColor;
+        mainCam.backgroundColor = new Color(0.06f, 0.07f, 0.10f, 1f);
         mainCam.allowHDR = true;
 
         UniversalAdditionalCameraData camData = mainCam.GetComponent<UniversalAdditionalCameraData>();
@@ -385,6 +391,18 @@ public static class ShowcaseVisualsBuilder
         camData.requiresColorTexture = true;
         camData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
         camData.antialiasingQuality = AntialiasingQuality.High;
+
+        // Método 2: Desativar visualização de fundo da Skybox na Scene View mantendo reflexos e luz ambiente ativos
+        foreach (SceneView sv in SceneView.sceneViews)
+        {
+            if (sv != null)
+            {
+                var state = sv.sceneViewState;
+                state.showSkybox = false;
+                sv.sceneViewState = state;
+                sv.Repaint();
+            }
+        }
     }
 
     private static void AttachCarVFX(string carName, Material ribbonMat, Material skidMat, Material sprayMat, Material nitroMat, Material sparkMat, Color neonCol)

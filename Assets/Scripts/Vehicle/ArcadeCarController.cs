@@ -5,13 +5,13 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(BoxCollider))]
 public class ArcadeCarController : MonoBehaviour
 {
-    [Header("Engine & Gearbox (Simcade)")]
-    [SerializeField] private float enginePeakForce = 48f;
-    [SerializeField] private float maxForwardSpeed = 29.5f;
-    [SerializeField] private float maxReverseSpeed = 13f;
-    [SerializeField] private float brakeForce = 62f;
-    [SerializeField] private float[] gearSpeedThresholds = { 7f, 13f, 19f, 24f, 29.5f };
-    [SerializeField] private float[] gearTorqueMultipliers = { 1.45f, 1.22f, 1.06f, 0.94f, 0.85f };
+    [Header("Engine & Gearbox (Simcade Moto)")]
+    [SerializeField] private float enginePeakForce = 52f;
+    [SerializeField] private float maxForwardSpeed = 30.5f;
+    [SerializeField] private float maxReverseSpeed = 12f;
+    [SerializeField] private float brakeForce = 64f;
+    [SerializeField] private float[] gearSpeedThresholds = { 7f, 13f, 19f, 24.5f, 30.5f };
+    [SerializeField] private float[] gearTorqueMultipliers = { 1.48f, 1.25f, 1.08f, 0.96f, 0.88f };
 
     [Header("Turbo Ability & Screen Blur")]
     [SerializeField] private KeyCode turboKey = KeyCode.LeftShift;
@@ -25,12 +25,12 @@ public class ArcadeCarController : MonoBehaviour
     [SerializeField] private float blurRampUpSpeed = 8.0f;
     [SerializeField] private float blurRampDownSpeed = 4.5f;
 
-    [Header("Drift, Dynamic Corner Slide & Tire Physics")]
-    [SerializeField] private float lowSpeedSteerTorque = 140f;
-    [SerializeField] private float highSpeedSteerTorque = 88f;
-    [SerializeField] private float driftSteerMultiplier = 1.42f;
-    [SerializeField] private float straightGripDamping = 9.0f;
-    [SerializeField] private float corneringGripDamping = 3.4f;
+    [Header("Motorcycle Cornering, Drift & Tire Physics")]
+    [SerializeField] private float lowSpeedSteerTorque = 152f;
+    [SerializeField] private float highSpeedSteerTorque = 98f;
+    [SerializeField] private float driftSteerMultiplier = 1.45f;
+    [SerializeField] private float straightGripDamping = 9.2f;
+    [SerializeField] private float corneringGripDamping = 3.5f;
     [SerializeField] private float driftGripDamping = 1.25f;
     [SerializeField] private float driftOutwardSlideForce = 16.5f;
     [SerializeField] private float naturalCornerSlideForce = 6.5f;
@@ -38,25 +38,34 @@ public class ArcadeCarController : MonoBehaviour
     [SerializeField] private float extraGravity = 28f;
     [SerializeField] private float rollingResistance = 0.75f;
 
-    [Header("Chassis Weight Transfer & Visual Drift Angle")]
-    [SerializeField] private float maxBodyRollAngle = 7.5f;
+    [Header("Motorcycle Lean (Curva) & Wheelie (Empinar)")]
+    [SerializeField] private float maxMotoLeanAngle = 40f;
+    [SerializeField] private float maxDriftLeanAngle = 48f;
+    [SerializeField] private float leanSmoothSpeed = 11.5f;
+    [SerializeField] private float maxWheelieAngle = 33f;
+    [SerializeField] private float wheelieRampUpSpeed = 4.2f;
+    [SerializeField] private float wheelieRampDownSpeed = 5.5f;
+    [SerializeField] private float rearAxlePivotZ = 1.02f;
     [SerializeField] private float maxBodyPitchAngle = 4.2f;
-    [SerializeField] private float maxVisualDriftYaw = 23f;
+    [SerializeField] private float maxVisualDriftYaw = 22f;
     [SerializeField] private float maxNaturalCornerYaw = 8.5f;
-    [SerializeField] private float suspensionSmoothSpeed = 10f;
 
     private Rigidbody rb;
     private ArcadeCarAudio carAudio;
     private Transform opponentTarget;
     private Transform visualMeshRoot;
     private Quaternion initialVisualLocalRot;
+    private Vector3 initialVisualLocalPos;
     private float inputThrottle;
     private float inputSteer;
     private bool inputHandbrake;
     private bool inputTurboKey;
+    private bool inputWheelie;
     private float currentTurbo = 100f;
     private bool isTurboActive = false;
     private bool turboOverheated = false;
+    private bool isWheelieActive = false;
+    private float currentWheelieFactor = 0f;
     private float currentRoll;
     private float currentPitch;
     private float currentDriftYaw;
@@ -74,6 +83,8 @@ public class ArcadeCarController : MonoBehaviour
     public bool IsTurboActive => isTurboActive;
     public bool IsDriftBoostActive => driftBoostTimer > 0f;
     public bool IsDrifting => isDrifting;
+    public bool IsWheelieActive => isWheelieActive;
+    public float WheelieFactor => currentWheelieFactor;
     public bool InSlipstream => inSlipstream;
     public float DriftCharge => driftCharge;
     public float SlipstreamCharge => slipstreamCharge;
@@ -96,7 +107,7 @@ public class ArcadeCarController : MonoBehaviour
             carAudio = gameObject.AddComponent<ArcadeCarAudio>();
         }
 
-        // Carro pesado e plantado no asfalto (1.8 tonelada + centro de gravidade baixo + sem capotar)
+        // Veículo pesado e plantado no asfalto (1.8 tonelada equivalente p/ estabilidade + sem capotar)
         rb.mass = 1800f;
         rb.centerOfMass = new Vector3(0f, -0.85f, 0f);
         rb.linearDamping = rollingResistance;
@@ -104,18 +115,25 @@ public class ArcadeCarController : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
 
-        // Garante que os novos parâmetros de Turbo, Drift e Peso sejam aplicados mesmo em objetos já serializados na cena
+        // Garante parâmetros calibrados de Moto (Curva, Empinar, Turbo e Drift)
+        lowSpeedSteerTorque = 152f;
+        highSpeedSteerTorque = 98f;
         turboAccelerationMultiplier = 2.25f;
         turboTopSpeedMultiplier = 1.50f;
         turboActivationImpulse = 13.5f;
-        driftSteerMultiplier = 1.42f;
-        straightGripDamping = 9.0f;
-        corneringGripDamping = 3.4f;
+        driftSteerMultiplier = 1.45f;
+        straightGripDamping = 9.2f;
+        corneringGripDamping = 3.5f;
         driftGripDamping = 1.25f;
         driftOutwardSlideForce = 16.5f;
         naturalCornerSlideForce = 6.5f;
         extraGravity = 28f;
-        maxVisualDriftYaw = 23f;
+        maxMotoLeanAngle = 40f;
+        maxDriftLeanAngle = 48f;
+        leanSmoothSpeed = 11.5f;
+        maxWheelieAngle = 33f;
+        rearAxlePivotZ = 1.02f;
+        maxVisualDriftYaw = 22f;
         maxNaturalCornerYaw = 8.5f;
         currentTurbo = maxTurboCapacity;
 
@@ -135,7 +153,7 @@ public class ArcadeCarController : MonoBehaviour
         BoxCollider col = GetComponent<BoxCollider>();
         if (col != null)
         {
-            PhysicsMaterial mat = new PhysicsMaterial("CarHeavyZeroBounce")
+            PhysicsMaterial mat = new PhysicsMaterial("MotoHeavyZeroBounce")
             {
                 dynamicFriction = 0.04f,
                 staticFriction = 0.04f,
@@ -172,28 +190,155 @@ public class ArcadeCarController : MonoBehaviour
                 }
                 existingVisual = visualGo.transform;
             }
+            else
+            {
+                GameObject visualGo = new GameObject("Visual_Mesh");
+                visualGo.transform.SetParent(transform, false);
+                visualGo.transform.SetAsFirstSibling();
+                existingVisual = visualGo.transform;
+            }
         }
 
         if (existingVisual != null)
         {
-            MeshFilter mf = existingVisual.GetComponent<MeshFilter>();
-            if (mf != null && mf.sharedMesh != null)
-            {
-                Bounds b = mf.sharedMesh.bounds;
-                float maxHoriz = Mathf.Max(b.size.x, b.size.z);
-                if (maxHoriz > 0.01f && maxHoriz < 2.0f && existingVisual.localScale.magnitude < 2.5f)
-                {
-                    float scaleFactor = 3.1f / maxHoriz;
-                    existingVisual.localScale = Vector3.one * scaleFactor;
-                }
-                if (b.size.x > b.size.z * 1.2f)
-                {
-                    existingVisual.localRotation = Quaternion.Euler(0f, -90f, 0f);
-                }
-            }
+            EnsureMotoModelLoaded(existingVisual);
             visualMeshRoot = existingVisual;
             initialVisualLocalRot = visualMeshRoot.localRotation;
+            initialVisualLocalPos = visualMeshRoot.localPosition;
         }
+    }
+
+    private void EnsureMotoModelLoaded(Transform visualTransform)
+    {
+        MeshFilter mf = visualTransform.GetComponent<MeshFilter>();
+        if (mf == null) mf = visualTransform.gameObject.AddComponent<MeshFilter>();
+        MeshRenderer mr = visualTransform.GetComponent<MeshRenderer>();
+        if (mr == null) mr = visualTransform.gameObject.AddComponent<MeshRenderer>();
+
+        if (mf.sharedMesh == null || mf.sharedMesh.name != "Moto_Anime_Rosa_Mesh")
+        {
+            const string glbPath = "Assets/Moto_Anime_Rosa.glb";
+            if (System.IO.File.Exists(glbPath))
+            {
+                for (int i = visualTransform.childCount - 1; i >= 0; i--)
+                {
+                    if (Application.isPlaying) Destroy(visualTransform.GetChild(i).gameObject);
+                    else DestroyImmediate(visualTransform.GetChild(i).gameObject);
+                }
+
+                mf.sharedMesh = LoadMotoGlbMeshDirect(glbPath);
+                Material motoMat = CreateMotoMaterialDirect("Assets/Materials/Cars/Moto_Anime_Rosa_base_color.jpg");
+                if (motoMat != null)
+                {
+                    mr.sharedMaterials = new Material[] { motoMat };
+                }
+            }
+        }
+
+        // Alinha o pivô na linha de contato dos pneus com o asfalto para inclinar na curva e empinar com perfeição
+        visualTransform.localPosition = new Vector3(0f, -0.45f, 0f);
+        visualTransform.localRotation = Quaternion.identity;
+        visualTransform.localScale = Vector3.one;
+
+        BoxCollider box = GetComponent<BoxCollider>();
+        if (box != null)
+        {
+            box.size = new Vector3(1.15f, 1.55f, 3.10f);
+            box.center = new Vector3(0f, 0.32f, 0f);
+        }
+    }
+
+    private static Mesh LoadMotoGlbMeshDirect(string glbFilePath)
+    {
+        const int vertexCount = 166059;
+        const int indexCount = 885582;
+        const int binDataStart = 1528;
+        const int indicesFileOffset = binDataStart + 0;
+        const int positionsFileOffset = binDataStart + 3542328;
+        const int uvsFileOffset = binDataStart + 10919360;
+
+        byte[] fileBytes = System.IO.File.ReadAllBytes(glbFilePath);
+        Vector3[] vertices = new Vector3[vertexCount];
+        Vector2[] uvs = new Vector2[vertexCount];
+        int[] triangles = new int[indexCount];
+
+        const float motoScale = 3.15f;
+        const float groundOffsetY = 0.3403756f;
+
+        int posOffset = positionsFileOffset;
+        for (int i = 0; i < vertexCount; i++)
+        {
+            float gx = System.BitConverter.ToSingle(fileBytes, posOffset);
+            float gy = System.BitConverter.ToSingle(fileBytes, posOffset + 4);
+            float gz = System.BitConverter.ToSingle(fileBytes, posOffset + 8);
+            posOffset += 12;
+
+            vertices[i] = new Vector3(
+                -gx * motoScale,
+                (gy + groundOffsetY) * motoScale,
+                gz * motoScale
+            );
+        }
+
+        int uvOffset = uvsFileOffset;
+        for (int i = 0; i < vertexCount; i++)
+        {
+            float u = System.BitConverter.ToSingle(fileBytes, uvOffset);
+            float v = System.BitConverter.ToSingle(fileBytes, uvOffset + 4);
+            uvOffset += 8;
+            uvs[i] = new Vector2(u, 1.0f - v);
+        }
+
+        int idxOffset = indicesFileOffset;
+        for (int i = 0; i < indexCount; i += 3)
+        {
+            int i0 = (int)System.BitConverter.ToUInt32(fileBytes, idxOffset);
+            int i1 = (int)System.BitConverter.ToUInt32(fileBytes, idxOffset + 4);
+            int i2 = (int)System.BitConverter.ToUInt32(fileBytes, idxOffset + 8);
+            idxOffset += 12;
+
+            triangles[i] = i0;
+            triangles[i + 1] = i2;
+            triangles[i + 2] = i1;
+        }
+
+        Mesh mesh = new Mesh
+        {
+            name = "Moto_Anime_Rosa_Mesh",
+            indexFormat = UnityEngine.Rendering.IndexFormat.UInt32
+        };
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private static Material CreateMotoMaterialDirect(string texPath)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        Material mat = new Material(shader) { name = "Mat_Moto_Anime_Rosa_Runtime" };
+
+        if (System.IO.File.Exists(texPath))
+        {
+            byte[] jpgBytes = System.IO.File.ReadAllBytes(texPath);
+            Texture2D tex = new Texture2D(2, 2, TextureFormat.RGB24, true);
+            ImageConversion.LoadImage(tex, jpgBytes, false);
+            tex.filterMode = FilterMode.Trilinear;
+            tex.anisoLevel = 8;
+            tex.Apply(true, false);
+
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+        }
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.58f);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.12f);
+        return mat;
     }
 
     private void ReadPlayerInput()
@@ -202,6 +347,7 @@ public class ArcadeCarController : MonoBehaviour
         float rawSteer = 0f;
         bool rawHandbrake = false;
         bool rawTurbo = false;
+        bool rawWheelie = false;
 
         Keyboard kb = Keyboard.current;
         if (kb != null)
@@ -212,6 +358,7 @@ public class ArcadeCarController : MonoBehaviour
             if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) rawSteer -= 1f;
             rawHandbrake = kb.spaceKey.isPressed;
             rawTurbo = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+            rawWheelie = kb.eKey.isPressed || kb.qKey.isPressed || kb.leftCtrlKey.isPressed;
         }
 
         Gamepad gp = Gamepad.current;
@@ -222,6 +369,7 @@ public class ArcadeCarController : MonoBehaviour
             // Y (buttonNorth) = Frear / Dar Ré
             // B (buttonEast)  = Turbo
             // X (buttonWest)  = Derrapar (Drift)
+            // LB / RB / LT / RT / Puxar Analógico p/ Trás = Empinar a Moto (Grau / Wheelie)
             if (gp.buttonSouth.isPressed) rawThrottle += 1f;
             if (gp.buttonNorth.isPressed) rawThrottle -= 1f;
 
@@ -233,6 +381,14 @@ public class ArcadeCarController : MonoBehaviour
 
             if (gp.buttonWest.isPressed) rawHandbrake = true;
             if (gp.buttonEast.isPressed) rawTurbo = true;
+
+            bool bumperOrTriggerWheelie = gp.leftShoulder.isPressed || gp.rightShoulder.isPressed ||
+                                          gp.leftTrigger.ReadValue() > 0.35f || gp.rightTrigger.ReadValue() > 0.35f;
+            bool pullBackStickWheelie = gp.leftStick.y.ReadValue() < -0.45f && gp.buttonSouth.isPressed;
+            if (bumperOrTriggerWheelie || pullBackStickWheelie)
+            {
+                rawWheelie = true;
+            }
         }
 
         // Suporte complementar para driver Xbox 360 via Legacy Input / Joystick no Linux
@@ -242,6 +398,7 @@ public class ArcadeCarController : MonoBehaviour
             if (Input.GetKey(KeyCode.JoystickButton3)) rawThrottle -= 1f; // Botão Y -> Frear / Ré
             if (Input.GetKey(KeyCode.JoystickButton2)) rawHandbrake = true; // Botão X -> Derrapar (Drift)
             if (Input.GetKey(KeyCode.JoystickButton1)) rawTurbo = true; // Botão B -> Turbo
+            if (Input.GetKey(KeyCode.JoystickButton4) || Input.GetKey(KeyCode.JoystickButton5)) rawWheelie = true; // LB / RB -> Empinar Moto
 
             float legacyHoriz = Input.GetAxisRaw("Horizontal");
             if (Mathf.Abs(legacyHoriz) > 0.15f && Mathf.Abs(legacyHoriz) > Mathf.Abs(rawSteer))
@@ -252,6 +409,12 @@ public class ArcadeCarController : MonoBehaviour
         catch
         {
             // Ignorado caso Legacy Input esteja desativado
+        }
+
+        // Se apertar o botão de Empinar a Moto, garante aceleração para levantar a roda dianteira
+        if (rawWheelie && rawThrottle >= 0f && rawThrottle < 0.9f)
+        {
+            rawThrottle = 1.0f;
         }
 
         // Assistência ergonômica de Drift no controle: se segurar X (Drift) em movimento sem apertar Y (Freio/Ré),
@@ -266,9 +429,10 @@ public class ArcadeCarController : MonoBehaviour
         }
 
         inputThrottle = Mathf.Clamp(rawThrottle, -1f, 1f);
-        inputSteer = Mathf.MoveTowards(inputSteer, Mathf.Clamp(rawSteer, -1f, 1f), 9.0f * Time.deltaTime);
+        inputSteer = Mathf.MoveTowards(inputSteer, Mathf.Clamp(rawSteer, -1f, 1f), 9.5f * Time.deltaTime);
         inputHandbrake = rawHandbrake;
         inputTurboKey = rawTurbo;
+        inputWheelie = rawWheelie;
     }
 
     private void Update()
@@ -276,6 +440,7 @@ public class ArcadeCarController : MonoBehaviour
         ReadPlayerInput();
         EvaluatePlayerSlipstream();
         HandleDriftAndSlingshot();
+        HandleWheelieMechanic();
         HandleTurboAbility();
         UpdateGearbox();
         UpdateVisualWeightTransfer();
@@ -285,7 +450,7 @@ public class ArcadeCarController : MonoBehaviour
     {
         ApplyAerodynamicDownforce();
 
-        // Segura o carro no grid de largada durante a contagem 3, 2, 1
+        // Segura a moto no grid de largada durante a contagem 3, 2, 1
         if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
@@ -296,6 +461,32 @@ public class ArcadeCarController : MonoBehaviour
         ApplyEngineAndBrakes();
         ApplySpeedSensitiveSteering();
         ApplyDynamicTireGrip();
+    }
+
+    private void HandleWheelieMechanic()
+    {
+        if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
+        {
+            isWheelieActive = false;
+            currentWheelieFactor = Mathf.MoveTowards(currentWheelieFactor, 0f, wheelieRampDownSpeed * Time.deltaTime);
+            return;
+        }
+
+        float forwardSpeed = rb != null ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
+        bool canWheelie = inputWheelie && inputThrottle > 0.1f && forwardSpeed > 3.0f && !inputHandbrake;
+
+        if (canWheelie)
+        {
+            isWheelieActive = true;
+            currentWheelieFactor = Mathf.MoveTowards(currentWheelieFactor, 1f, wheelieRampUpSpeed * Time.deltaTime);
+            // Empinar a moto recarrega o Turbo continuamente por estilo!
+            currentTurbo = Mathf.Min(maxTurboCapacity, currentTurbo + 14f * Time.deltaTime);
+        }
+        else
+        {
+            isWheelieActive = false;
+            currentWheelieFactor = Mathf.MoveTowards(currentWheelieFactor, 0f, wheelieRampDownSpeed * Time.deltaTime);
+        }
     }
 
     private void EvaluatePlayerSlipstream()
@@ -353,7 +544,6 @@ public class ArcadeCarController : MonoBehaviour
         {
             if (isDrifting && driftCharge >= 0.35f && speed > 5.0f)
             {
-                // Dispara Drift Boost ao alinhar o carro na saída da curva!
                 driftBoostTimer = Mathf.Lerp(0.75f, 1.35f, driftCharge);
                 currentTurbo = Mathf.Min(maxTurboCapacity, currentTurbo + 18f * driftCharge);
                 rb.AddForce(transform.forward * (8.5f * driftCharge), ForceMode.VelocityChange);
@@ -389,7 +579,6 @@ public class ArcadeCarController : MonoBehaviour
                 isTurboActive = true;
                 rb.AddForce(transform.forward * turboActivationImpulse, ForceMode.VelocityChange);
             }
-            // Se apertar o botão B (Turbo), força aceleração máxima imediata
             if (inputThrottle < 0.8f) inputThrottle = 1.0f;
             currentTurbo -= turboBurnRate * Time.deltaTime;
             if (currentTurbo <= 0f)
@@ -433,7 +622,6 @@ public class ArcadeCarController : MonoBehaviour
 
     private void ApplyAerodynamicDownforce()
     {
-        // Impede qualquer pulo ou voo vertical após colisões
         Vector3 vel = rb.linearVelocity;
         if (vel.y > 0.25f)
         {
@@ -449,7 +637,6 @@ public class ArcadeCarController : MonoBehaviour
     {
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
 
-        // Se apertar X (Drift) parado ou em linha reta sem acelerar, freia
         if (inputHandbrake && inputThrottle <= 0.05f && Mathf.Abs(inputSteer) < 0.12f)
         {
             Vector3 brakeVec = -rb.linearVelocity.normalized * (brakeForce * 0.75f);
@@ -472,14 +659,16 @@ public class ArcadeCarController : MonoBehaviour
                 float launchBoost = Mathf.Abs(forwardSpeed) < 6.5f ? 1.28f : 1.0f;
                 float turboForceMult = isTurboActive ? turboAccelerationMultiplier : (driftBoostTimer > 0f ? 1.65f : 1.0f);
                 float turboSpeedMult = isTurboActive ? turboTopSpeedMultiplier : (driftBoostTimer > 0f ? 1.28f : 1.0f);
+                float wheelieForceMult = isWheelieActive ? 1.20f : 1.0f;
+                float wheelieSpeedMult = isWheelieActive ? 1.15f : 1.0f;
                 float slipstreamMult = 1.0f + (slipstreamCharge * 0.22f);
 
                 float handbrakeDrag = inputHandbrake ? 0.92f : 1.0f;
-                float targetMax = (inputThrottle > 0f ? maxForwardSpeed : maxReverseSpeed) * turboSpeedMult * slipstreamMult;
+                float targetMax = (inputThrottle > 0f ? maxForwardSpeed : maxReverseSpeed) * turboSpeedMult * wheelieSpeedMult * slipstreamMult;
 
                 if (Mathf.Abs(forwardSpeed) < targetMax)
                 {
-                    float finalForce = inputThrottle * enginePeakForce * gearMult * launchBoost * turboForceMult * slipstreamMult * handbrakeDrag;
+                    float finalForce = inputThrottle * enginePeakForce * gearMult * launchBoost * turboForceMult * wheelieForceMult * slipstreamMult * handbrakeDrag;
                     rb.AddForce(transform.forward * finalForce, ForceMode.Acceleration);
                 }
             }
@@ -499,6 +688,11 @@ public class ArcadeCarController : MonoBehaviour
         {
             activeSteerTorque *= driftSteerMultiplier;
         }
+        else if (isWheelieActive)
+        {
+            // Durante o grau (empinada), a roda dianteira está no ar, então esterça pelo equilíbrio do corpo
+            activeSteerTorque *= 0.82f;
+        }
         else if (isTurboActive)
         {
             activeSteerTorque *= 0.88f;
@@ -515,10 +709,6 @@ public class ArcadeCarController : MonoBehaviour
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
         float absSteer = Mathf.Abs(inputSteer);
 
-        // Calcula o nível de deslize lateral:
-        // - Em linha reta: alta aderência (straightGripDamping)
-        // - Em curva rápida normal: deslize dinâmico progressivo (corneringGripDamping)
-        // - Segurando X (Drift): deslize acentuado estilo arcade (driftGripDamping)
         float gripDamping = straightGripDamping;
         if (inputHandbrake && speed > 4.0f && absSteer > 0.1f)
         {
@@ -530,7 +720,6 @@ public class ArcadeCarController : MonoBehaviour
             gripDamping = Mathf.Lerp(straightGripDamping, corneringGripDamping, cornerFactor);
         }
 
-        // Força centrífuga que joga a traseira para fora da curva, gerando o deslize visível na pista
         if (forwardSpeed > 5.0f && absSteer > 0.15f)
         {
             float speedFactor = Mathf.Clamp01(forwardSpeed / maxForwardSpeed);
@@ -542,7 +731,6 @@ public class ArcadeCarController : MonoBehaviour
         Vector3 forwardVel = transform.forward * forwardSpeed;
         Vector3 lateralVel = transform.right * Vector3.Dot(rb.linearVelocity, transform.right);
 
-        // Amortecimento exponencial suave independente de framerate (permite o carro escorregar de lado na curva!)
         float lateralRetention = Mathf.Exp(-gripDamping * Time.fixedDeltaTime);
         Vector3 newHorizontalVel = forwardVel + (lateralVel * lateralRetention);
         rb.linearVelocity = new Vector3(newHorizontalVel.x, rb.linearVelocity.y, newHorizontalVel.z);
@@ -556,14 +744,21 @@ public class ArcadeCarController : MonoBehaviour
         float accelerationDelta = (forwardSpeed - previousForwardSpeed) / Mathf.Max(Time.deltaTime, 0.001f);
         previousForwardSpeed = forwardSpeed;
 
-        float speedRatio = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / maxForwardSpeed);
-        float driftRollBoost = isDrifting ? 1.35f : 1.0f;
-        float targetRoll = Mathf.Clamp(inputSteer * speedRatio * maxBodyRollAngle * driftRollBoost, -maxBodyRollAngle * 1.3f, maxBodyRollAngle * 1.3f);
+        float speedRatio = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 16f);
 
-        float turboPitchBoost = (isTurboActive || driftBoostTimer > 0f) ? -3.0f : 0f;
-        float targetPitch = Mathf.Clamp((-accelerationDelta * 0.18f) + turboPitchBoost, -maxBodyPitchAngle, maxBodyPitchAngle);
+        // 1. INCLINAÇÃO REAL DE MOTO NA CURVA (Leans INTO the turn: -inputSteer)
+        // Virar p/ Direita (+inputSteer) inclina a moto e o piloto para a Direita (-Z roll) em torno do pneu!
+        float activeMaxLean = isDrifting ? maxDriftLeanAngle : maxMotoLeanAngle;
+        float targetRoll = -inputSteer * Mathf.Max(0.25f, speedRatio) * activeMaxLean;
+        targetRoll = Mathf.Clamp(targetRoll, -maxDriftLeanAngle, maxDriftLeanAngle);
 
-        // Ângulo visual de derrapagem (Yaw): atravessa o carro na curva durante o Drift e curvas fortes
+        // 2. EMPINAR A MOTO (Wheelie / Grau) + Transferência de Peso Longitudinal
+        float wheeliePitch = -currentWheelieFactor * maxWheelieAngle;
+        float turboPitchBoost = (isTurboActive || driftBoostTimer > 0f) ? -3.5f : 0f;
+        float accelPitch = Mathf.Clamp((-accelerationDelta * 0.16f) + turboPitchBoost, -maxBodyPitchAngle, maxBodyPitchAngle);
+        float targetPitch = wheeliePitch + accelPitch * (1f - currentWheelieFactor * 0.7f);
+
+        // 3. ÂNGULO DE DERRAPAGEM (Yaw) na rabeta da moto durante o Drift
         float targetDriftYaw = 0f;
         if (forwardSpeed > 4.0f)
         {
@@ -573,14 +768,27 @@ public class ArcadeCarController : MonoBehaviour
             }
             else
             {
-                float slipRatio = Mathf.Clamp( -lateralSpeed / 9.0f, -1f, 1f);
+                float slipRatio = Mathf.Clamp(-lateralSpeed / 9.0f, -1f, 1f);
                 targetDriftYaw = (inputSteer * 0.6f + slipRatio * 0.4f) * maxNaturalCornerYaw * speedRatio;
             }
         }
 
-        currentRoll = Mathf.Lerp(currentRoll, targetRoll, suspensionSmoothSpeed * Time.deltaTime);
-        currentPitch = Mathf.Lerp(currentPitch, targetPitch, suspensionSmoothSpeed * Time.deltaTime);
-        currentDriftYaw = Mathf.Lerp(currentDriftYaw, targetDriftYaw, (suspensionSmoothSpeed * 0.85f) * Time.deltaTime);
+        currentRoll = Mathf.Lerp(currentRoll, targetRoll, leanSmoothSpeed * Time.deltaTime);
+        currentPitch = Mathf.Lerp(currentPitch, targetPitch, leanSmoothSpeed * Time.deltaTime);
+        currentDriftYaw = Mathf.Lerp(currentDriftYaw, targetDriftYaw, (leanSmoothSpeed * 0.85f) * Time.deltaTime);
+
+        // Quando a moto empina (currentPitch < -1°), rotaciona em torno do eixo da roda traseira para o pneu traseiro continuar colado no chão!
+        if (currentPitch < -0.5f)
+        {
+            float rad = Mathf.Abs(currentPitch) * Mathf.Deg2Rad;
+            float liftY = Mathf.Sin(rad) * rearAxlePivotZ;
+            float shiftZ = -(1f - Mathf.Cos(rad)) * rearAxlePivotZ;
+            visualMeshRoot.localPosition = initialVisualLocalPos + new Vector3(0f, liftY, shiftZ);
+        }
+        else
+        {
+            visualMeshRoot.localPosition = Vector3.Lerp(visualMeshRoot.localPosition, initialVisualLocalPos, 15f * Time.deltaTime);
+        }
 
         visualMeshRoot.localRotation = initialVisualLocalRot * Quaternion.Euler(currentPitch, currentDriftYaw, currentRoll);
     }

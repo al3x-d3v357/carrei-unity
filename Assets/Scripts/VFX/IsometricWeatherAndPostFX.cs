@@ -25,6 +25,10 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
 
         if (mainCam != null)
         {
+            // Método 1: Câmera com Fundo Sólido mantendo reflexos e luz ambiente da Skybox intactos
+            mainCam.clearFlags = CameraClearFlags.SolidColor;
+            mainCam.backgroundColor = new Color(0.06f, 0.07f, 0.10f, 1f);
+
             var camData = mainCam.GetComponent<UniversalAdditionalCameraData>();
             if (camData != null)
             {
@@ -33,6 +37,14 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
             }
             SetupCameraBlurQuad(mainCam);
         }
+
+        // Calibração de Luz Ambiente (Gradient/Trilight) e Reflexos de Environment
+        RenderSettings.ambientMode = AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.52f, 0.56f, 0.78f);
+        RenderSettings.ambientEquatorColor = new Color(0.92f, 0.65f, 0.52f);
+        RenderSettings.ambientGroundColor = new Color(0.38f, 0.40f, 0.52f);
+        RenderSettings.ambientIntensity = 1.35f;
+        RenderSettings.reflectionIntensity = 1.25f;
 
         if (playerController == null)
         {
@@ -60,6 +72,10 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
                 volProf.TryGet(out vignette);
                 volProf.TryGet(out lensDistortion);
                 volProf.TryGet(out motionBlur);
+                if (volProf.TryGet(out ColorAdjustments colorAdj))
+                {
+                    colorAdj.postExposure.value = Mathf.Max(colorAdj.postExposure.value, 0.45f);
+                }
             }
             catch
             {
@@ -195,7 +211,7 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
         string gearStr = playerController.ThrottleInput < -0.1f && playerController.CurrentSpeedKmh > 3f
             ? "R"
             : $"{playerController.CurrentGear}ª";
-        GUI.Label(new Rect(x, y + 22f, panelW, 22f), $"VEL: {Mathf.RoundToInt(playerController.CurrentSpeedKmh)} KM/H   [MARCHA {gearStr}]", speedStyle);
+        GUI.Label(new Rect(x, y + 22f, panelW + 30f, 22f), $"VEL: {Mathf.RoundToInt(playerController.CurrentSpeedKmh)} KM/H  [{gearStr}]  GRAU [LB/RB/E]", speedStyle);
 
         // Barra de Turbo
         float barY = y + 48f;
@@ -220,10 +236,11 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
         float driftFill = playerController.IsDriftBoostActive ? 1f : playerController.DriftCharge;
         GUI.DrawTexture(new Rect(x + 112f, driftY + 3f, (barW - 112f) * driftFill, 12f), Texture2D.whiteTexture);
 
-        // Badges de Estado Ativo (Turbo / Drift / Drift Boost / Vacuo)
+        // Badges de Estado Ativo (Turbo / Grau / Drift / Drift Boost / Vacuo)
         string statusBadge = "";
         if (playerController.IsTurboActive) statusBadge += "🚀 TURBO NITRO ATIVO!   ";
         else if (playerController.IsDriftBoostActive) statusBadge += "⚡ DRIFT BOOST ATIVO!   ";
+        else if (playerController.IsWheelieActive) statusBadge += "🏍️ EMPINANDO A MOTO (GRAU)! +TURBO   ";
         else if (playerController.IsDrifting)
         {
             statusBadge += playerController.DriftCharge >= 0.40f

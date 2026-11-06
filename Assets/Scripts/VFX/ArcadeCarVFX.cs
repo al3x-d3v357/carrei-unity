@@ -92,6 +92,7 @@ public class ArcadeCarVFX : MonoBehaviour
         float lateralSlip = Mathf.Abs(Vector3.Dot(rb.linearVelocity, transform.right));
 
         bool isPlayerDrifting = playerCtrl != null && (playerCtrl.IsDrifting || (Mathf.Abs(playerCtrl.VisualDriftYaw) > 3.5f && speed > 7f));
+        bool isWheelie = playerCtrl != null && playerCtrl.IsWheelieActive && forwardSpeed > 3f;
         bool isDrifting = isPlayerDrifting || (lateralSlip > 1.8f && speed > 6f);
 
         bool isTurbo = playerCtrl != null && playerCtrl.IsTurboActive && forwardSpeed > 2f;
@@ -129,20 +130,20 @@ public class ArcadeCarVFX : MonoBehaviour
         if (driftSprayPS != null)
         {
             var emission = driftSprayPS.emission;
-            emission.rateOverTime = isDrifting ? 75f : 0f;
+            emission.rateOverTime = isDrifting ? 75f : (isWheelie ? 25f : 0f);
         }
 
-        // 5. Faíscas de Drift nas rodas traseiras
+        // 5. Faíscas de Drift e de Rabeta ao Empinar (Grau) nas rodas traseiras
         if (driftSparksPS != null)
         {
             var emission = driftSparksPS.emission;
-            bool emitDriftSparks = isDrifting && speed > 7.5f;
-            emission.rateOverTime = emitDriftSparks ? 48f : 0f;
+            bool emitDriftSparks = (isDrifting && speed > 7.5f) || (isWheelie && speed > 6f);
+            emission.rateOverTime = emitDriftSparks ? 52f : 0f;
             if (emitDriftSparks && playerCtrl != null)
             {
                 var main = driftSparksPS.main;
-                main.startColor = playerCtrl.DriftCharge >= 0.40f
-                    ? new Color(0.15f, 0.90f, 1.0f, 1f)
+                main.startColor = (playerCtrl.DriftCharge >= 0.40f || isWheelie)
+                    ? new Color(1.0f, 0.45f, 0.85f, 1f) // Rosa/Magenta Anime ou Ciano ao empinar/carregar
                     : new Color(1.0f, 0.60f, 0.12f, 1f);
             }
         }

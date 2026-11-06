@@ -1,0 +1,259 @@
+.root-container {
+    flex-grow: 1;
+    justify-content: space-between;
+    padding: 30px;
+    background-color: rgba(0, 0, 0, 0); /* Transparente para ver a cena 3D */
+    font-size: 15px;
+    color: #ffffff;
+}
+
+.header-label {
+    font-size: 26px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    border-left-width: 4px;
+    border-left-color: #f39c12;
+    padding-left: 10px;
+}
+
+/* Painel Esquerdo (Menu de Ações) */
+.menu-panel {
+    width: 260px;
+}
+
+.menu-button {
+    height: 40px;
+    margin-bottom: 8px;
+    background-color: rgba(20, 20, 20, 0.85);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #dcdcdc;
+    font-size: 15px;
+    -unity-font-style: bold;
+    letter-spacing: 1.5px;
+    -unity-text-align: middle-left;
+    padding-left: 16px;
+    transition-duration: 0.15s;
+    border-radius: 4px;
+}
+
+.menu-button:hover {
+    background-color: rgba(243, 156, 18, 0.25);
+    border-color: #f39c12;
+    color: #ffffff;
+}
+
+.menu-button:focus {
+    border-color: #f39c12;
+    border-width: 2px;
+}
+
+/* Painel Central / Thumbnail Preview */
+.preview-panel {
+    width: 380px;
+    height: 240px;
+    background-color: rgba(12, 14, 20, 0.8);
+    border-width: 1px;
+    border-color: rgba(243, 156, 18, 0.3);
+    border-radius: 6px;
+    padding: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-image {
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* Painel Direito (Estatísticas e Specs) */
+.stats-panel {
+    width: 290px;
+    background-color: rgba(15, 15, 18, 0.85);
+    padding: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+}
+
+.stat-row {
+    margin-bottom: 12px;
+}
+
+.stat-label-container {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #b0b0b0;
+    -unity-font-style: bold;
+}
+
+.stat-bar-background {
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    background-color: #f39c12;
+    border-radius: 2px;
+}
+
+.specs-divider {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.spec-item {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.spec-title {
+    color: #8a8a8a;
+    font-size: 12px;
+}
+
+.spec-value {
+    color: #ffffff;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+/* Modal / Subtelas (Options / Viabilidade) */
+.modal-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-window {
+    width: 580px;
+    background-color: rgba(18, 22, 32, 0.98);
+    border-width: 2px;
+    border-color: #f39c12;
+    border-radius: 8px;
+    padding: 24px;
+}
+
+.modal-header {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: #f39c12;
+    margin-bottom: 16px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.15);
+    padding-bottom: 8px;
+}
+
+.option-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.option-label {
+    font-size: 14px;
+    color: #e0e0e0;
+    -unity-font-style: bold;
+    width: 180px;
+}
+
+.option-slider {
+    flex-grow: 1;
+}
+
+.modal-close-btn {
+    height: 38px;
+    margin-top: 18px;
+    background-color: #f39c12;
+    color: #121212;
+    font-size: 14px;
+    -unity-font-style: bold;
+    border-radius: 4px;
+    border-width: 0;
+}
+
+.modal-close-btn:hover {
+    background-color: #ffa726;
+}
+
+/* Tabela de Viabilidade dos Carros */
+.viability-table {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.viability-row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.viability-cell-name {
+    width: 160px;
+    font-size: 13px;
+    color: #ffffff;
+    -unity-font-style: bold;
+}
+
+.viability-cell-status {
+    width: 110px;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.status-ok {
+    color: #43bdb0;
+}
+
+.status-warn {
+    color: #f39c12;
+}
+
+.viability-cell-poly {
+    font-size: 12px;
+    color: #a0a0a0;
+}
+
+/* Rodapé */
+.footer-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.car-title-label {
+    font-size: 30px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: #ffffff;
+}
+
+.footer-nav {
+    flex-direction: row;
+    color: #8c8c8c;
+    font-size: 13px;
+}
+
+.footer-nav-item {
+    margin-left: 18px;
+}

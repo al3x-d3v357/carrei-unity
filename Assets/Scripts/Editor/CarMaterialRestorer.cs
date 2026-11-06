@@ -229,6 +229,10 @@ public static class CarMaterialRestorer
         MeshRenderer[] renderers = vehicleGo.GetComponentsInChildren<MeshRenderer>(true);
         foreach (MeshRenderer mr in renderers)
         {
+            MeshFilter mf = mr.GetComponent<MeshFilter>();
+            if (mf != null && mf.sharedMesh != null && mf.sharedMesh.name.Contains("Moto_Anime"))
+                continue;
+
             Material[] currentShared = mr.sharedMaterials;
             for (int i = 0; i < currentShared.Length; i++)
             {

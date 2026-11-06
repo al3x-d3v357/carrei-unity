@@ -76,8 +76,9 @@ public static class PrototypeSceneBuilder
         // 7. Geracao dos 8 Waypoints da Linha de Corrida para a IA Offline
         List<Transform> racingWaypoints = CreateRacingLineWaypoints();
 
-        // 8. Instanciacao do Carro do Jogador e do Oponente IA no Grid de Largada
-        GameObject playerModel = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Car_Model_1.fbx");
+        // 8. Instanciacao da Moto do Jogador e do Oponente IA no Grid de Largada
+        GameObject playerModel = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Moto_Anime_Rosa.prefab") ??
+                                 AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Car_Model_1.fbx");
         GameObject playerCar = SetupVehicle(playerModel, "Player_Car", new Vector3(-4f, 1.0f, -30f));
         playerCar.AddComponent<ArcadeCarController>();
         playerCar.AddComponent<ArcadeCollisionBumper>();

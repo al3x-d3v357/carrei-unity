@@ -1,0 +1,158 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/CarSelect/CarSelectScreen.uss" />
+    <ui:VisualElement class="root-container">
+        
+        <!-- Topo: Menu, Thumbnail e Estatísticas -->
+        <ui:VisualElement style="flex-direction: row; justify-content: space-between; align-items: flex-start;">
+            
+            <!-- Painel Esquerdo -->
+            <ui:VisualElement name="MenuContainer" class="menu-panel">
+                <ui:Label text="MENU PRINCIPAL" class="header-label" />
+                <ui:Button name="BtnGarage" text="GARAGE / TROCAR CARRO" class="menu-button" />
+                <ui:Button name="BtnOptions" text="OPÇÕES / ÁUDIO" class="menu-button" />
+                <ui:Button name="BtnViability" text="VIABILIDADE DE CARROS" class="menu-button" />
+                <ui:Button name="BtnRace" text="INICIAR CORRIDA" class="menu-button" />
+            </ui:VisualElement>
+
+            <!-- Painel Central: Preview / Thumbnail da Imagem do Veículo -->
+            <ui:VisualElement name="ThumbnailPanel" class="preview-panel">
+                <ui:VisualElement name="CarThumbnailImage" class="preview-image" />
+            </ui:VisualElement>
+
+            <!-- Painel Direito: Estatísticas e Especificações -->
+            <ui:VisualElement name="StatsContainer" class="stats-panel">
+                <ui:VisualElement class="stat-row">
+                    <ui:VisualElement class="stat-label-container">
+                        <ui:Label text="SPEED" class="stat-label" />
+                        <ui:Label name="ValueSpeed" text="80/100" class="stat-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat-bar-background">
+                        <ui:VisualElement name="BarFillSpeed" class="stat-bar-fill" style="width: 80%;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:VisualElement class="stat-label-container">
+                        <ui:Label text="ACCELERATION" class="stat-label" />
+                        <ui:Label name="ValueAccel" text="75/100" class="stat-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat-bar-background">
+                        <ui:VisualElement name="BarFillAccel" class="stat-bar-fill" style="width: 75%;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:VisualElement class="stat-label-container">
+                        <ui:Label text="HANDLING" class="stat-label" />
+                        <ui:Label name="ValueHandling" text="65/100" class="stat-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat-bar-background">
+                        <ui:VisualElement name="BarFillHandling" class="stat-bar-fill" style="width: 65%;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="specs-divider" />
+
+                <ui:VisualElement name="SpecsContainer">
+                    <ui:VisualElement class="spec-item">
+                        <ui:Label text="CLASS:" class="spec-title" />
+                        <ui:Label name="SpecClass" text="A" class="spec-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="spec-item">
+                        <ui:Label text="WEIGHT:" class="spec-title" />
+                        <ui:Label name="SpecWeight" text="1,320 kg" class="spec-value" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="spec-item">
+                        <ui:Label text="DRIVE:" class="spec-title" />
+                        <ui:Label name="SpecDrive" text="AWD" class="spec-value" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Rodapé -->
+        <ui:VisualElement name="VehicleInfo" class="footer-container">
+            <ui:Label name="CarNameLabel" text="VX-9 PHANTOM" class="car-title-label" />
+            
+            <ui:VisualElement name="NavigationControls" class="footer-nav">
+                <ui:Label text="(A/W) ACELERAR" class="footer-nav-item" />
+                <ui:Label text="(B/Shift) TURBO" class="footer-nav-item" />
+                <ui:Label text="(X/Space) DRIFT" class="footer-nav-item" />
+                <ui:Label text="(LB/RB/E) EMPINAR" class="footer-nav-item" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Modal de Opções / Volume (Inicialmente Oculto) -->
+        <ui:VisualElement name="ModalOptions" class="modal-overlay" style="display: none;">
+            <ui:VisualElement class="modal-window">
+                <ui:Label text="OPÇÕES DO JOGO" class="modal-header" />
+                
+                <ui:VisualElement class="option-row">
+                    <ui:Label text="Volume Geral:" class="option-label" />
+                    <ui:Slider name="SliderMasterVol" low-value="0" high-value="100" value="80" class="option-slider" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="option-row">
+                    <ui:Label text="Volume Motor/SFX:" class="option-label" />
+                    <ui:Slider name="SliderSfxVol" low-value="0" high-value="100" value="85" class="option-slider" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="option-row">
+                    <ui:Label text="Música de Fundo:" class="option-label" />
+                    <ui:Slider name="SliderMusicVol" low-value="0" high-value="100" value="65" class="option-slider" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="option-row">
+                    <ui:Label text="Controle Xbox 360:" class="option-label" />
+                    <ui:Label text="CONECTADO / ATIVO" style="color: #43bdb0; -unity-font-style: bold; font-size: 13px;" />
+                </ui:VisualElement>
+
+                <ui:Button name="BtnCloseOptions" text="SALVAR E VOLTAR" class="modal-close-btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Modal de Viabilidade dos Carros (Inicialmente Oculto) -->
+        <ui:VisualElement name="ModalViability" class="modal-overlay" style="display: none;">
+            <ui:VisualElement class="modal-window">
+                <ui:Label text="RELATÓRIO DE VIABILIDADE DOS VEÍCULOS" class="modal-header" />
+                
+                <ui:Label text="Apenas os modelos otimizados do projeto estão liberados para corrida:" style="font-size: 12px; color: #b0b0b0; margin-bottom: 8px;" />
+
+                <ui:VisualElement class="viability-table">
+                    <ui:VisualElement class="viability-row" style="background-color: rgba(255, 255, 255, 0.05);">
+                        <ui:Label text="VEÍCULO" class="viability-cell-name" style="color: #f39c12;" />
+                        <ui:Label text="STATUS" class="viability-cell-status" style="color: #f39c12;" />
+                        <ui:Label text="PESO / OTIMIZAÇÃO" class="viability-cell-poly" style="color: #f39c12;" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="viability-row">
+                        <ui:Label text="VX-9 Phantom (Car 1)" class="viability-cell-name" />
+                        <ui:Label text="✓ Liberado" class="viability-cell-status status-ok" />
+                        <ui:Label text="331 KB (Ultra Leve)" class="viability-cell-poly" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="viability-row">
+                        <ui:Label text="Moto Anime Rosa" class="viability-cell-name" />
+                        <ui:Label text="✓ Liberada" class="viability-cell-status status-ok" />
+                        <ui:Label text="12 MB (Textura 8K URP)" class="viability-cell-poly" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="viability-row">
+                        <ui:Label text="GT-R Apex (Car 2)" class="viability-cell-name" />
+                        <ui:Label text="✓ Liberado" class="viability-cell-status status-ok" />
+                        <ui:Label text="528 KB (Otimizado)" class="viability-cell-poly" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="viability-row">
+                        <ui:Label text="Outros da pasta Veículos" class="viability-cell-name" />
+                        <ui:Label text="⚠ Bloqueado" class="viability-cell-status status-warn" />
+                        <ui:Label text="Em reformulação (Pesado)" class="viability-cell-poly" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:Button name="BtnCloseViability" text="VOLTAR AO MENU" class="modal-close-btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

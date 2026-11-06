@@ -28,9 +28,15 @@ public class IsometricFollowCamera : MonoBehaviour
         distance = 22f;
         lookAheadFactor = 0.16f;
         maxLookAheadDist = 3.2f;
-        if (cam != null && cam.orthographic)
+        if (cam != null)
         {
-            cam.orthographicSize = baseOrthoSize;
+            // Método 1: Câmera com Fundo Sólido (oculta o desenho visual da Skybox no fundo, preservando 100% dos reflexos e luz ambiente)
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.06f, 0.07f, 0.10f, 1f);
+            if (cam.orthographic)
+            {
+                cam.orthographicSize = baseOrthoSize;
+            }
         }
         if (GetComponent<AudioListener>() == null && Object.FindAnyObjectByType<AudioListener>() == null)
         {

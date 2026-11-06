@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 958730dd8466e1ccf9f2b776c5c646f3, type: 3}
+  m_Name: CarData_MotoAnimeRosa
+  m_EditorClassIdentifier: Assembly-CSharp::CarData
+  carName: Moto Anime Rosa
+  carClass: S
+  topSpeed: 92
+  acceleration: 95
+  handling: 88
+  weight: 215 kg
+  drivetrain: RWD
+  carPrefab: {fileID: 7658049125217748146, guid: e71439173f4e8d9d7b898009b9604a06, type: 3}
