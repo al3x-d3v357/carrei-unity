@@ -163,6 +163,12 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
     {
         if (playerController == null) return;
 
+        // Se ainda está na tela de seleção inicial de veículos, oculta o HUD de corrida da parte inferior
+        if (LapManager.Instance != null && LapManager.Instance.IsWaitingForVehicleSelection)
+        {
+            return;
+        }
+
         float panelW = 290f;
         float panelH = 112f;
         float x = 24f;

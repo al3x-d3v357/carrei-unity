@@ -14,7 +14,11 @@ public class LapManager : MonoBehaviour
     [SerializeField] private float startCountdownSeconds = 3.0f;
     [SerializeField] private float goBannerDuration = 1.15f;
 
+    [Header("Vehicle Selection State")]
+    [SerializeField] private bool waitingForVehicleSelection = true;
+
     public int TotalLaps => totalLaps;
+    public bool IsWaitingForVehicleSelection => waitingForVehicleSelection;
     public bool IsRaceStarted => raceStarted;
     public float CountdownRemaining => countdownRemaining;
     public float GoTimerRemaining => goTimerRemaining;
@@ -49,6 +53,7 @@ public class LapManager : MonoBehaviour
         countdownRemaining = startCountdownSeconds;
         goTimerRemaining = 0f;
         raceStarted = false;
+        waitingForVehicleSelection = true;
         lastAnnouncedSecond = 4;
 
         countdownAudio = gameObject.GetComponent<AudioSource>();
@@ -75,6 +80,15 @@ public class LapManager : MonoBehaviour
             aiTransform = aiGo.transform;
             progressMap["AI_Opponent_Car"] = new CarLapProgress();
         }
+    }
+
+    public void ConfirmVehicleSelectionAndStartCountdown()
+    {
+        waitingForVehicleSelection = false;
+        countdownRemaining = startCountdownSeconds;
+        raceStarted = false;
+        lastAnnouncedSecond = 4;
+        Debug.Log("[LapManager] Veículo confirmado! Iniciando contagem 3, 2, 1, GO!...");
     }
 
     public void RegisterCheckpoint(Transform cp)
@@ -123,6 +137,12 @@ public class LapManager : MonoBehaviour
 
     private void Update()
     {
+        // Se ainda está na tela de seleção de veículo, aguarda o jogador escolher e confirmar
+        if (waitingForVehicleSelection)
+        {
+            return;
+        }
+
         if (!raceStarted)
         {
             int currentSec = Mathf.CeilToInt(countdownRemaining);

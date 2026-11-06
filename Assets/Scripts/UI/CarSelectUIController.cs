@@ -189,15 +189,52 @@ public class CarSelectUIController : MonoBehaviour
         if (modal != null) modal.style.display = DisplayStyle.None;
     }
 
-    private void OnRaceClicked()
+    private void Update()
+    {
+        // Se a tela de seleção estiver visível, permite navegar e confirmar pelo controle de Xbox 360 e teclado
+        if (root != null && root.style.display != DisplayStyle.None)
+        {
+            // Botão A do Xbox (ou Enter / Espaço): Confirmar veículo e iniciar corrida
+            if (Input.GetKeyDown(KeyCode.JoystickButton0) || Input.GetKeyDown(KeyCode.Return))
+            {
+                OnRaceClicked();
+            }
+            // Botão X do Xbox (ou Tab / D / Direita): Trocar de veículo
+            else if (Input.GetKeyDown(KeyCode.JoystickButton2) || Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                OnGarageNextCar();
+            }
+            // Botão Y do Xbox (ou O): Abrir Opções
+            else if (Input.GetKeyDown(KeyCode.JoystickButton3) || Input.GetKeyDown(KeyCode.O))
+            {
+                OnOptionsClicked();
+            }
+            // Botão B do Xbox (ou Escape): Fechar modais abertos
+            else if (Input.GetKeyDown(KeyCode.JoystickButton1) || Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (modalOptions != null && modalOptions.style.display == DisplayStyle.Flex)
+                    CloseModal(modalOptions);
+                else if (modalViability != null && modalViability.style.display == DisplayStyle.Flex)
+                    CloseModal(modalViability);
+            }
+        }
+    }
     {
         if (availableCars.Count > 0)
         {
-            Debug.Log($"[CarSelect] Iniciando corrida com: {availableCars[currentCarIndex].carName}");
+            Debug.Log($"[CarSelect] Veículo confirmado: {availableCars[currentCarIndex].carName}. Iniciando corrida!");
         }
+
+        // 1. Oculta a tela de seleção de veículo
         if (root != null)
         {
             root.style.display = DisplayStyle.None;
+        }
+
+        // 2. Dispara a contagem regressiva 3, 2, 1, GO! no LapManager
+        if (LapManager.Instance != null)
+        {
+            LapManager.Instance.ConfirmVehicleSelectionAndStartCountdown();
         }
     }
 }
