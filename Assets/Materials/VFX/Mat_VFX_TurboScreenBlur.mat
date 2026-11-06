@@ -27,7 +27,7 @@ Material:
     m_Floats:
     - _BlurStrength: 0
     - _BlurWidth: 0.24
-    - _CenterFocusRadius: 0.16
+    - _CenterFocusRadius: 0.45
     m_Colors:
     - _TurboTint: {r: 0.14999998, g: 0.75, b: 1, a: 1}
   m_BuildTextureStacks: []
