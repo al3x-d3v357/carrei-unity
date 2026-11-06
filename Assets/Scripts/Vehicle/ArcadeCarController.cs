@@ -80,6 +80,27 @@ public class ArcadeCarController : MonoBehaviour
     private float slipstreamCharge = 0f;
     private bool inSlipstream = false;
 
+    [Header("Vehicle Type Configuration")]
+    [SerializeField] private bool isMotorcycleVehicle = false;
+    public bool IsMotorcycle => isMotorcycleVehicle;
+
+    public void NotifyVisualMeshUpdated(bool isMotorcycle)
+    {
+        isMotorcycleVehicle = isMotorcycle;
+        Transform v = transform.Find("Visual_Mesh");
+        if (v != null)
+        {
+            visualMeshRoot = v;
+            initialVisualLocalRot = v.localRotation;
+            initialVisualLocalPos = v.localPosition;
+            currentRoll = 0f;
+            currentPitch = 0f;
+            currentDriftYaw = 0f;
+            currentWheelieFactor = 0f;
+            isWheelieActive = false;
+        }
+    }
+
     public bool IsTurboActive => isTurboActive;
     public bool IsDriftBoostActive => driftBoostTimer > 0f;
     public bool IsDrifting => isDrifting;
@@ -204,7 +225,9 @@ public class ArcadeCarController : MonoBehaviour
             MeshFilter mf = existingVisual.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null)
             {
-                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh);
+                bool isMoto = gameObject.name.ToLower().Contains("moto") || (mf.sharedMesh.name.ToLower().Contains("moto"));
+                isMotorcycleVehicle = isMoto;
+                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh, isMoto);
             }
             visualMeshRoot = existingVisual;
             initialVisualLocalRot = visualMeshRoot.localRotation;
@@ -454,7 +477,7 @@ public class ArcadeCarController : MonoBehaviour
     {
         ApplyAerodynamicDownforce();
 
-        // Segura a moto no grid de largada durante a contagem 3, 2, 1
+        // Segura o veículo no grid de largada durante a contagem 3, 2, 1
         if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
         {
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
@@ -469,6 +492,13 @@ public class ArcadeCarController : MonoBehaviour
 
     private void HandleWheelieMechanic()
     {
+        if (!isMotorcycleVehicle)
+        {
+            isWheelieActive = false;
+            currentWheelieFactor = 0f;
+            return;
+        }
+
         if (LapManager.Instance != null && !LapManager.Instance.IsRaceStarted)
         {
             isWheelieActive = false;
@@ -750,30 +780,52 @@ public class ArcadeCarController : MonoBehaviour
 
         float speedRatio = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 16f);
 
-        // 1. INCLINAÇÃO REAL DE MOTO NA CURVA (Leans INTO the turn: -inputSteer)
-        // Virar p/ Direita (+inputSteer) inclina a moto e o piloto para a Direita (-Z roll) em torno do pneu!
-        float activeMaxLean = isDrifting ? maxDriftLeanAngle : maxMotoLeanAngle;
-        float targetRoll = -inputSteer * Mathf.Max(0.25f, speedRatio) * activeMaxLean;
-        targetRoll = Mathf.Clamp(targetRoll, -maxDriftLeanAngle, maxDriftLeanAngle);
-
-        // 2. EMPINAR A MOTO (Wheelie / Grau) + Transferência de Peso Longitudinal
-        float wheeliePitch = -currentWheelieFactor * maxWheelieAngle;
-        float turboPitchBoost = (isTurboActive || driftBoostTimer > 0f) ? -3.5f : 0f;
-        float accelPitch = Mathf.Clamp((-accelerationDelta * 0.16f) + turboPitchBoost, -maxBodyPitchAngle, maxBodyPitchAngle);
-        float targetPitch = wheeliePitch + accelPitch * (1f - currentWheelieFactor * 0.7f);
-
-        // 3. ÂNGULO DE DERRAPAGEM (Yaw) na rabeta da moto durante o Drift
+        float targetRoll = 0f;
+        float targetPitch = 0f;
         float targetDriftYaw = 0f;
-        if (forwardSpeed > 4.0f)
+
+        if (isMotorcycleVehicle)
         {
-            if (inputHandbrake && Mathf.Abs(inputSteer) > 0.12f)
+            // MOTO: Inclinacao real para dentro da curva (40 a 48 graus)
+            float activeMaxLean = isDrifting ? maxDriftLeanAngle : maxMotoLeanAngle;
+            targetRoll = -inputSteer * Mathf.Max(0.25f, speedRatio) * activeMaxLean;
+            targetRoll = Mathf.Clamp(targetRoll, -maxDriftLeanAngle, maxDriftLeanAngle);
+
+            // Grau (Wheelie) + Pitch de aceleracao
+            float wheeliePitch = -currentWheelieFactor * maxWheelieAngle;
+            float turboPitchBoost = (isTurboActive || driftBoostTimer > 0f) ? -3.5f : 0f;
+            float accelPitch = Mathf.Clamp((-accelerationDelta * 0.16f) + turboPitchBoost, -maxBodyPitchAngle, maxBodyPitchAngle);
+            targetPitch = wheeliePitch + accelPitch * (1f - currentWheelieFactor * 0.7f);
+
+            // Angulo de derrapagem (Yaw) na rabeta da moto durante drift
+            if (forwardSpeed > 4.0f)
             {
-                targetDriftYaw = inputSteer * maxVisualDriftYaw * Mathf.Clamp01(forwardSpeed / 14f);
+                if (inputHandbrake && Mathf.Abs(inputSteer) > 0.12f)
+                {
+                    targetDriftYaw = inputSteer * maxVisualDriftYaw * Mathf.Clamp01(forwardSpeed / 14f);
+                }
+                else
+                {
+                    float slipRatio = Mathf.Clamp(-lateralSpeed / 9.0f, -1f, 1f);
+                    targetDriftYaw = (inputSteer * 0.6f + slipRatio * 0.4f) * maxNaturalCornerYaw * speedRatio;
+                }
             }
-            else
+        }
+        else
+        {
+            // CARRO: Roll sutil da suspensao para fora da curva (+4.5 graus), mantendo estabilidade e peso
+            targetRoll = inputSteer * speedRatio * 4.5f;
+
+            // Pitch sutil de frenagem / aceleracao (-3.5 a +3.5 graus) sem empinar
+            float turboPitchBoost = (isTurboActive || driftBoostTimer > 0f) ? -1.8f : 0f;
+            targetPitch = Mathf.Clamp((-accelerationDelta * 0.08f) + turboPitchBoost, -3.5f, 3.5f);
+
+            // Yaw visual de drift suave na traseira do carro
+            if (forwardSpeed > 4.0f)
             {
-                float slipRatio = Mathf.Clamp(-lateralSpeed / 9.0f, -1f, 1f);
-                targetDriftYaw = (inputSteer * 0.6f + slipRatio * 0.4f) * maxNaturalCornerYaw * speedRatio;
+                float slipRatio = Mathf.Clamp(-lateralSpeed / 10.0f, -1f, 1f);
+                float maxCarYaw = isDrifting ? 18.0f : 6.0f;
+                targetDriftYaw = (inputSteer * 0.45f + slipRatio * 0.55f) * maxCarYaw * speedRatio;
             }
         }
 
@@ -781,8 +833,8 @@ public class ArcadeCarController : MonoBehaviour
         currentPitch = Mathf.Lerp(currentPitch, targetPitch, leanSmoothSpeed * Time.deltaTime);
         currentDriftYaw = Mathf.Lerp(currentDriftYaw, targetDriftYaw, (leanSmoothSpeed * 0.85f) * Time.deltaTime);
 
-        // Quando a moto empina (currentPitch < -1°), rotaciona em torno do eixo da roda traseira para o pneu traseiro continuar colado no chão!
-        if (currentPitch < -0.5f)
+        // Quando a moto empina, rotaciona em torno do eixo da roda traseira para o pneu continuar colado no chao
+        if (isMotorcycleVehicle && currentPitch < -0.5f)
         {
             float rad = Mathf.Abs(currentPitch) * Mathf.Deg2Rad;
             float liftY = Mathf.Sin(rad) * rearAxlePivotZ;

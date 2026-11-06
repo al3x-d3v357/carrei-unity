@@ -127,7 +127,8 @@ public class ArcadeCarAI : MonoBehaviour
             MeshFilter mf = existingVisual.GetComponent<MeshFilter>();
             if (mf != null && mf.sharedMesh != null)
             {
-                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh);
+                bool isMoto = gameObject.name.ToLower().Contains("moto") || (mf.sharedMesh.name.ToLower().Contains("moto"));
+                CarSelectUIController.StandardizeVisualTransform(existingVisual, mf.sharedMesh, isMoto);
             }
             visualMeshRoot = existingVisual;
             initialVisualLocalRot = visualMeshRoot.localRotation;

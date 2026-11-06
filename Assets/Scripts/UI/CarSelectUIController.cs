@@ -184,40 +184,44 @@ public class CarSelectUIController : MonoBehaviour
         }
 
         // PADRONIZAÇÃO DE TAMANHO E ROTAÇÃO PARA NÃO FICAR PEQUENO NEM DESALINHADO
-        StandardizeVisualTransform(visualRoot, myMf.sharedMesh);
+        bool isMoto = data.carName.ToLower().Contains("moto");
+        StandardizeVisualTransform(visualRoot, myMf.sharedMesh, isMoto);
+
+        // Notifica o controlador do jogador para salvar a nova rotação base e ajustar física
+        ArcadeCarController playerCtrl = playerCar.GetComponent<ArcadeCarController>();
+        if (playerCtrl != null)
+        {
+            playerCtrl.NotifyVisualMeshUpdated(isMoto);
+        }
 
         // Atualiza as dimensões do colisor
         BoxCollider box = playerCar.GetComponent<BoxCollider>();
         if (box != null)
         {
-            if (data.carName.ToLower().Contains("moto"))
+            if (isMoto)
             {
-                box.size = new Vector3(1.20f, 1.60f, 3.20f);
+                box.size = new Vector3(1.20f, 1.60f, 3.15f);
                 box.center = new Vector3(0f, 0.35f, 0f);
             }
             else
             {
-                box.size = new Vector3(1.85f, 0.95f, 3.35f);
+                box.size = new Vector3(1.95f, 1.10f, 4.00f);
                 box.center = new Vector3(0f, 0.45f, 0f);
             }
         }
     }
 
-    public static void StandardizeVisualTransform(Transform visualRoot, Mesh mesh)
+    public static void StandardizeVisualTransform(Transform visualRoot, Mesh mesh, bool isMoto = false)
     {
         if (visualRoot == null || mesh == null) return;
 
         Bounds b = mesh.bounds;
         float maxHoriz = Mathf.Max(b.size.x, b.size.z);
 
-        // Tamanho padrão de comprimento de veículo de corrida: 3.2 metros
-        const float targetLength = 3.20f;
+        // Tamanho padrão proporcional: Carros têm 4.0m de comprimento; Moto tem 3.15m
+        float targetLength = isMoto ? 3.15f : 4.00f;
         float finalScale = 1.0f;
-        if (maxHoriz > 0.01f && maxHoriz < 2.0f)
-        {
-            finalScale = targetLength / maxHoriz;
-        }
-        else if (maxHoriz >= 2.0f)
+        if (maxHoriz > 0.01f)
         {
             finalScale = targetLength / maxHoriz;
         }

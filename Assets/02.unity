@@ -2670,6 +2670,7 @@ MonoBehaviour:
   - {fileID: 1677939246}
   startCountdownSeconds: 3
   goBannerDuration: 1.15
+  waitingForVehicleSelection: 1
 --- !u!4 &1350655838
 Transform:
   m_ObjectHideFlags: 0

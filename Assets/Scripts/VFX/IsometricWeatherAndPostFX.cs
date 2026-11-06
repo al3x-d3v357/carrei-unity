@@ -217,7 +217,8 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
         string gearStr = playerController.ThrottleInput < -0.1f && playerController.CurrentSpeedKmh > 3f
             ? "R"
             : $"{playerController.CurrentGear}ª";
-        GUI.Label(new Rect(x, y + 22f, panelW + 30f, 22f), $"VEL: {Mathf.RoundToInt(playerController.CurrentSpeedKmh)} KM/H  [{gearStr}]  GRAU [LB/RB/E]", speedStyle);
+        string motoGrauHint = playerController.IsMotorcycle ? "  GRAU [LB/RB/E]" : "";
+        GUI.Label(new Rect(x, y + 22f, panelW + 30f, 22f), $"VEL: {Mathf.RoundToInt(playerController.CurrentSpeedKmh)} KM/H  [{gearStr}]{motoGrauHint}", speedStyle);
 
         // Barra de Turbo
         float barY = y + 48f;
@@ -246,7 +247,7 @@ public class IsometricWeatherAndPostFX : MonoBehaviour
         string statusBadge = "";
         if (playerController.IsTurboActive) statusBadge += "🚀 TURBO NITRO ATIVO!   ";
         else if (playerController.IsDriftBoostActive) statusBadge += "⚡ DRIFT BOOST ATIVO!   ";
-        else if (playerController.IsWheelieActive) statusBadge += "🏍️ EMPINANDO A MOTO (GRAU)! +TURBO   ";
+        else if (playerController.IsMotorcycle && playerController.IsWheelieActive) statusBadge += "🏍️ EMPINANDO A MOTO (GRAU)! +TURBO   ";
         else if (playerController.IsDrifting)
         {
             statusBadge += playerController.DriftCharge >= 0.40f
